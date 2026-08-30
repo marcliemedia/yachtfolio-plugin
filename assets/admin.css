@@ -1,0 +1,186 @@
+/* Otium Yachtfolio Sync — admin styling. Plain WP admin idiom, no framework. */
+
+.oy-yf-cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	gap: 16px;
+	margin: 16px 0 24px;
+}
+
+.oy-yf-card {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-left: 4px solid #2271b1;
+	padding: 12px 16px;
+}
+
+.oy-yf-card h2 {
+	margin: 0 0 8px;
+	font-size: 13px;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	color: #50575e;
+}
+
+.oy-yf-kv {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+
+.oy-yf-kv th {
+	text-align: left;
+	font-weight: 500;
+	color: #50575e;
+	padding: 3px 8px 3px 0;
+	vertical-align: top;
+	white-space: nowrap;
+}
+
+.oy-yf-kv td {
+	padding: 3px 0;
+	word-break: break-word;
+}
+
+.oy-yf-unmapped {
+	border-left-color: #dba617;
+}
+
+.oy-yf-actions {
+	margin: 12px 0;
+}
+
+.oy-yf-filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+	margin: 12px 0;
+}
+
+/* pills */
+.oy-yf-pill {
+	display: inline-block;
+	padding: 1px 7px;
+	border-radius: 9px;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1.7;
+	background: #f0f0f1;
+	border: 1px solid #c3c4c7;
+	color: #3c434a;
+	white-space: nowrap;
+}
+
+.oy-yf-pill-synced,
+.oy-yf-pill-publish { background: #edfaef; border-color: #68de7c; color: #0a4b14; }
+.oy-yf-pill-error   { background: #fcf0f1; border-color: #e65054; color: #8a1f24; }
+.oy-yf-pill-pending,
+.oy-yf-pill-draft   { background: #fcf9e8; border-color: #dba617; color: #674e00; }
+.oy-yf-pill-stale   { background: #f6f7f7; border-color: #a7aaad; color: #50575e; }
+.oy-yf-pill-owned   { background: #f0f6fc; border-color: #4f94d4; color: #0a4b78; }
+
+.oy-yf-level-error { background: #fcf0f1; border-color: #e65054; color: #8a1f24; }
+.oy-yf-level-warn  { background: #fcf9e8; border-color: #dba617; color: #674e00; }
+.oy-yf-level-info  { background: #f0f6fc; border-color: #4f94d4; color: #0a4b78; }
+.oy-yf-level-debug { background: #f6f7f7; border-color: #a7aaad; color: #50575e; }
+
+.oy-yf-flag {
+	display: inline-block;
+	margin: 0 3px 3px 0;
+	padding: 1px 6px;
+	border-radius: 3px;
+	font-size: 11px;
+	background: #fcf9e8;
+	border: 1px solid #dba617;
+	color: #674e00;
+}
+
+/* logs */
+.oy-yf-logs pre {
+	margin: 6px 0 0;
+	padding: 8px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	max-height: 260px;
+	overflow: auto;
+	font-size: 11px;
+	white-space: pre-wrap;
+}
+
+.oy-yf-logs details summary {
+	cursor: pointer;
+	color: #2271b1;
+	font-size: 11px;
+}
+
+/* modal for diff and JSON */
+.oy-yf-modal {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, .55);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 100050;
+}
+
+.oy-yf-modal[hidden] { display: none; }
+
+.oy-yf-modal-box {
+	background: #fff;
+	width: min(1000px, 92vw);
+	max-height: 86vh;
+	display: flex;
+	flex-direction: column;
+	border-radius: 3px;
+	box-shadow: 0 6px 30px rgba(0, 0, 0, .3);
+}
+
+.oy-yf-modal-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 10px 14px;
+	border-bottom: 1px solid #dcdcde;
+}
+
+.oy-yf-modal-head h2 { margin: 0; font-size: 15px; }
+
+.oy-yf-modal-body {
+	padding: 14px;
+	overflow: auto;
+}
+
+.oy-yf-modal-body pre {
+	margin: 0;
+	font-size: 12px;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+/* diff table */
+.oy-yf-diff {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 12px;
+}
+
+.oy-yf-diff th,
+.oy-yf-diff td {
+	border-bottom: 1px solid #dcdcde;
+	padding: 5px 8px;
+	vertical-align: top;
+	text-align: left;
+}
+
+.oy-yf-diff td.oy-yf-old { color: #8a1f24; font-family: Menlo, Consolas, monospace; }
+.oy-yf-diff td.oy-yf-new { color: #0a4b14; font-family: Menlo, Consolas, monospace; }
+.oy-yf-diff tr.oy-yf-skipped td { color: #787c82; font-style: italic; }
+.oy-yf-diff tr.oy-yf-unchanged { display: none; }
+.oy-yf-diff.oy-yf-show-all tr.oy-yf-unchanged { display: table-row; }
+
+.oy-yf-busy { opacity: .55; pointer-events: none; }
+
+.oy-yf-legend { margin-top: 10px; font-size: 12px; }
+.oy-yf-legend code { font-size: 11px; }

@@ -1,0 +1,53 @@
+# vendor/ is deliberately COMMITTED.
+#
+# This plugin is deployed by copying files onto the server — there is no
+# composer on the SiteGround host and no build step. A clone must therefore be
+# droppable straight into wp-content/plugins/ and work. composer.lock pins the
+# same tree, so `composer install` reproduces it byte for byte if you prefer.
+
+# Secrets never belong here. The API passkey is read from the
+# OY_YF_PASSKEY_LIVE / OY_YF_PASSKEY_TEST constants in wp-config.php, or from
+# the plugin's own settings row in the database — never from a file in this
+# repository. These patterns exist so an accident cannot become a public leak.
+.env
+.env.*
+*.pem
+*.key
+#
+# NOT `secrets.*` — git sets core.ignorecase=true on Windows and macOS, so that
+# glob silently swallowed `src/Support/Secrets.php`, a real source file, out of
+# the first commit. Anchored to the repository root and restricted to data
+# extensions, it cannot match a PHP class again.
+/secrets.json
+/secrets.yml
+/secrets.yaml
+/secrets.txt
+/secrets.ini
+wp-config.php
+
+# Local exports and debugging output
+*.log
+*.sql
+*.sql.gz
+*.tar.gz
+*.zip
+*.wpress
+/dumps/
+/backups/
+
+# Editor and OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.sublime-*
+*~
+*.swp
+*.orig
+*.rej
+
+# PHP tooling caches
+.php-cs-fixer.cache
+.phpunit.result.cache
+/.phpcs-cache/
