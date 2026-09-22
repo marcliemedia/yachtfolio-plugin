@@ -525,6 +525,20 @@ body.oy-yf-screen {
 	color: var(--oy-n-0);
 }
 
+/* Anchors styled as buttons.
+   `.oy-yf a` is (0,1,1) and beats `.oy-btn--primary` at (0,1,0), so a link
+   button inherited the link colour: dark blue text on the blue primary fill,
+   measured at 1.28:1 — effectively invisible. These restate the intent at a
+   specificity that wins. */
+.oy-yf a.oy-btn          { color: var(--oy-text-label); }
+.oy-yf a.oy-btn:hover    { color: var(--oy-text-strong); }
+.oy-yf a.oy-btn--primary,
+.oy-yf a.oy-btn--primary:hover { color: var(--oy-n-0); }
+.oy-yf a.oy-btn--ghost,
+.oy-yf a.oy-btn--ghost:hover   { color: var(--oy-accent-ink); }
+.oy-yf a.oy-btn--danger,
+.oy-yf a.oy-btn--danger:hover  { color: var(--oy-bad-fg); }
+
 .oy-btn--ghost {
 	border-color: transparent;
 	background: transparent;
