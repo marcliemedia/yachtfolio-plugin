@@ -6,6 +6,7 @@ namespace Otium\Yachtfolio\Admin;
 
 use Otium\Yachtfolio\Plugin;
 use Otium\Yachtfolio\Sync\YachtMapStore;
+use Otium\Yachtfolio\Write\DataScore;
 
 if (!class_exists('\WP_List_Table')) {
     require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
@@ -130,6 +131,10 @@ final class YachtsTable extends \WP_List_Table
         return [
             'yacht_name' => ['yacht_name', true],
             'status'     => ['status', false],
+            // Sortable because the score is mirrored into the map table; the
+            // presence markers themselves live in post meta and cannot be
+            // ordered in SQL.
+            'data'       => ['data_score', false],
             'modified'   => ['last_modified_remote', false],
             'synced'     => ['last_synced_at', false],
         ];
@@ -139,12 +144,16 @@ final class YachtsTable extends \WP_List_Table
     protected function get_bulk_actions(): array
     {
         return [
-            'select'   => __('Mark selected for sync', 'otium-yachtfolio-sync'),
-            'unselect' => __('Remove from sync selection', 'otium-yachtfolio-sync'),
-            'show'     => __('Set visible', 'otium-yachtfolio-sync'),
-            'hide'     => __('Set hidden', 'otium-yachtfolio-sync'),
-            'sync'     => __('Sync now', 'otium-yachtfolio-sync'),
-            'dry_run'  => __('Dry run', 'otium-yachtfolio-sync'),
+            'select'    => __('Mark selected for sync', 'otium-yachtfolio-sync'),
+            'unselect'  => __('Remove from sync selection', 'otium-yachtfolio-sync'),
+            'show'      => __('Set visible', 'otium-yachtfolio-sync'),
+            'hide'      => __('Set hidden', 'otium-yachtfolio-sync'),
+            'sync'      => __('Sync now', 'otium-yachtfolio-sync'),
+            'dry_run'   => __('Dry run', 'otium-yachtfolio-sync'),
+            // Publishing in bulk still honours the Visible gate; anything not
+            // visible is refused and reported rather than quietly published.
+            'publish'   => __('Publish', 'otium-yachtfolio-sync'),
+            'unpublish' => __('Move back to draft', 'otium-yachtfolio-sync'),
         ];
     }
 
@@ -154,23 +163,27 @@ final class YachtsTable extends \WP_List_Table
         $current = isset($_GET['view']) ? sanitize_key((string) $_GET['view']) : 'all';
 
         $counts = [
-            'all'       => $map->count(),
-            'linked'    => $map->count(['linked' => true]),
-            'selected'  => $map->count(['selected' => true]),
-            'owned'     => $map->count(['owned' => true]),
-            'attention' => $map->count(['attention' => true]),
-            'error'     => $map->count(['status' => YachtMapStore::STATUS_ERROR]),
-            'stale'     => $map->count(['status' => YachtMapStore::STATUS_STALE]),
+            'all'        => $map->count(),
+            'linked'     => $map->count(['linked' => true]),
+            'selected'   => $map->count(['selected' => true]),
+            'owned'      => $map->count(['owned' => true]),
+            'incomplete' => $map->count(['incomplete' => true]),
+            'attention'  => $map->count(['attention' => true]),
+            'error'      => $map->count(['status' => YachtMapStore::STATUS_ERROR]),
+            'stale'      => $map->count(['status' => YachtMapStore::STATUS_STALE]),
         ];
 
         $labels = [
-            'all'       => __('All', 'otium-yachtfolio-sync'),
-            'linked'    => __('Linked', 'otium-yachtfolio-sync'),
-            'selected'  => __('Selected', 'otium-yachtfolio-sync'),
-            'owned'     => __('Owned by us', 'otium-yachtfolio-sync'),
-            'attention' => __('Needs attention', 'otium-yachtfolio-sync'),
-            'error'     => __('Errors', 'otium-yachtfolio-sync'),
-            'stale'     => __('Stale', 'otium-yachtfolio-sync'),
+            'all'        => __('All', 'otium-yachtfolio-sync'),
+            'linked'     => __('Linked', 'otium-yachtfolio-sync'),
+            'selected'   => __('Selected', 'otium-yachtfolio-sync'),
+            'owned'      => __('Owned by us', 'otium-yachtfolio-sync'),
+            // Imported but short of at least one scored section — the yachts
+            // worth re-running before anything gets published.
+            'incomplete' => __('Incomplete data', 'otium-yachtfolio-sync'),
+            'attention'  => __('Needs attention', 'otium-yachtfolio-sync'),
+            'error'      => __('Errors', 'otium-yachtfolio-sync'),
+            'stale'      => __('Stale', 'otium-yachtfolio-sync'),
         ];
 
         $views = [];
@@ -205,13 +218,14 @@ final class YachtsTable extends \WP_List_Table
         }
 
         match ($view) {
-            'linked'    => $args['linked'] = true,
-            'selected'  => $args['selected'] = true,
-            'owned'     => $args['owned'] = true,
-            'attention' => $args['attention'] = true,
-            'error'     => $args['status'] = YachtMapStore::STATUS_ERROR,
-            'stale'     => $args['status'] = YachtMapStore::STATUS_STALE,
-            default     => null,
+            'linked'     => $args['linked'] = true,
+            'selected'   => $args['selected'] = true,
+            'owned'      => $args['owned'] = true,
+            'incomplete' => $args['incomplete'] = true,
+            'attention'  => $args['attention'] = true,
+            'error'      => $args['status'] = YachtMapStore::STATUS_ERROR,
+            'stale'      => $args['status'] = YachtMapStore::STATUS_STALE,
+            default      => null,
         };
 
         $countArgs = $args;
@@ -300,10 +314,14 @@ final class YachtsTable extends \WP_List_Table
         $actions += [
             'sync'    => $this->action_link($yfId, 'oy_yf_sync_one', __('Sync', 'otium-yachtfolio-sync')),
             'dry_run' => $this->action_link($yfId, 'oy_yf_dry_run', __('Dry run', 'otium-yachtfolio-sync')),
-            'json'    => $this->action_link($yfId, 'oy_yf_show_json', __('Show JSON', 'otium-yachtfolio-sync')),
         ];
 
         if (!empty($item['post_id'])) {
+            // The stored payload lives on the post, so this only exists after an
+            // import. It used to be offered on all 433 rows and answered with an
+            // empty window on the 423 that have never been imported.
+            $actions['json'] = $this->action_link($yfId, 'oy_yf_show_json', __('Show JSON', 'otium-yachtfolio-sync'));
+
             $post = get_post((int) $item['post_id']);
             if ($post && $post->post_status === 'publish') {
                 $actions['unpublish'] = $this->action_link($yfId, 'oy_yf_unpublish', __('Unpublish', 'otium-yachtfolio-sync'));
@@ -453,27 +471,22 @@ final class YachtsTable extends \WP_List_Table
             );
         }
 
-        $parts = [
-            'yf_has_rates'     => __('Rates', 'otium-yachtfolio-sync'),
-            'yf_has_amenities' => __('Amenities', 'otium-yachtfolio-sync'),
-            'yf_has_crew'      => __('Crew', 'otium-yachtfolio-sync'),
-            'yf_has_toys'      => __('Toys', 'otium-yachtfolio-sync'),
-            'yf_has_gallery'   => __('Gallery', 'otium-yachtfolio-sync'),
-        ];
+        // One definition, shared with the sort column and the Incomplete filter.
+        $labels    = DataScore::sections();
+        $breakdown = DataScore::breakdown($postId);
 
-        $have = [];
         $missing = [];
-        $bar = '';
+        $bar     = '';
 
-        foreach ($parts as $key => $label) {
-            // The marker is the count when present and an empty string when not.
-            $on = (string) get_post_meta($postId, $key, true) !== '';
-            $on ? $have[] = $label : $missing[] = $label;
+        foreach ($breakdown as $key => $on) {
+            if (!$on) {
+                $missing[] = $labels[$key];
+            }
             $bar .= sprintf('<span class="oy-meter__seg%s"></span>', $on ? ' is-on' : '');
         }
 
-        $filled = count($have);
-        $total  = count($parts);
+        $filled = count(array_filter($breakdown));
+        $total  = DataScore::MAX;
 
         $tone = $filled === $total ? ' oy-meter--full' : ($filled === 0 ? ' oy-meter--empty' : '');
 

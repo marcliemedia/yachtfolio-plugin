@@ -34,7 +34,36 @@ final class Activator
         if (get_option('oy_yf_db_version') !== OY_YF_VERSION) {
             self::create_tables();
             self::grant_capability();
+            self::backfill_data_score();
             update_option('oy_yf_db_version', OY_YF_VERSION, false);
+        }
+    }
+
+    /**
+     * `data_score` is a new column, so every yacht imported before it existed
+     * would read as 0 — sorting and the "incomplete" filter would be wrong until
+     * the next full sync. Only linked rows are touched, so this is bounded by
+     * the number of yachts actually imported, not by the size of the feed.
+     */
+    private static function backfill_data_score(): void
+    {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'oy_yf_map';
+        if ($wpdb->get_var("SHOW TABLES LIKE '$table'") !== $table) {
+            return;
+        }
+        if ($wpdb->get_var("SHOW COLUMNS FROM $table LIKE 'data_score'") === null) {
+            return;
+        }
+
+        $rows = $wpdb->get_results("SELECT yf_id, post_id FROM $table WHERE post_id IS NOT NULL", ARRAY_A);
+        foreach (is_array($rows) ? $rows : [] as $row) {
+            $wpdb->update(
+                $table,
+                ['data_score' => \Otium\Yachtfolio\Write\DataScore::of((int) $row['post_id'])],
+                ['yf_id' => (int) $row['yf_id']]
+            );
         }
     }
 
@@ -62,6 +91,7 @@ final class Activator
             brochure_hash CHAR(64) NOT NULL DEFAULT '',
             image_count INT NOT NULL DEFAULT 0,
             media_total INT NOT NULL DEFAULT 0,
+            data_score TINYINT UNSIGNED NOT NULL DEFAULT 0,
             attention VARCHAR(255) NOT NULL DEFAULT '',
             last_error TEXT NULL,
             last_synced_at DATETIME NULL DEFAULT NULL,
@@ -75,6 +105,7 @@ final class Activator
             KEY post_id (post_id),
             KEY status (status),
             KEY selected (selected),
+            KEY data_score (data_score),
             KEY authorisation_lost_at (authorisation_lost_at)
         ) $charset";
 

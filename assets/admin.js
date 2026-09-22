@@ -211,12 +211,25 @@
 		post(action, { yacht: yachtId }).then(function (response) {
 			var data = response && response.data ? response.data : {};
 
+			// A failed request must report why. Previously the per-action
+			// branches ran regardless of `success`, so a refusal such as "this
+			// yacht has no linked post yet" opened an empty JSON window and the
+			// explanation was discarded.
+			if (!response.success) {
+				notice(data.message || i18n.failed || 'Request failed.', 'error');
+				// The server refused, so the optimistic flip was a lie.
+				if (isSwitch) {
+					flipSwitch(button);
+				}
+				return;
+			}
+
 			if (action === 'oy_yf_dry_run') {
 				renderDiff(Array.isArray(data.diff) ? data.diff : []);
 			} else if (action === 'oy_yf_show_json') {
 				renderJson((i18n.jsonTitle || 'Stored payload') + ' — ' + (data.title || ''), data.json || '');
 			} else if (data.message) {
-				notice(data.message, response.success ? 'success' : 'error');
+				notice(data.message, 'success');
 			}
 
 			if (response.success && ['oy_yf_sync_one', 'oy_yf_publish', 'oy_yf_unpublish', 'oy_yf_toggle_visible', 'oy_yf_toggle_selected', 'oy_yf_unlink'].indexOf(action) !== -1) {

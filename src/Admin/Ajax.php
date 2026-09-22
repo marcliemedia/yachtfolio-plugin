@@ -217,6 +217,9 @@ final class Ajax
         $map = $this->plugin->map();
         $done = 0;
         $messages = [];
+        // Rows a bulk action deliberately refused, reported back rather than
+        // silently dropped: "12 processed" out of 20 selected is a question.
+        $skipped = [];
 
         foreach ($ids as $yfId) {
             $row = $map->get($yfId);
@@ -240,6 +243,35 @@ final class Ajax
                     }
                     break;
 
+                case 'publish':
+                case 'unpublish':
+                    if ($postId <= 0) {
+                        $skipped[] = sprintf(
+                            /* translators: %s: yacht name */
+                            __('%s: not linked to a post', 'otium-yachtfolio-sync'),
+                            (string) $row['yacht_name']
+                        );
+                        break;
+                    }
+                    // Same rule the single-row action enforces: Visible is the
+                    // gate in front of publishing, and a bulk action must not be
+                    // a way around it.
+                    if ($operation === 'publish'
+                        && (string) get_post_meta($postId, 'yf_visible', true) !== 'true') {
+                        $skipped[] = sprintf(
+                            /* translators: %s: yacht name */
+                            __('%s: not marked visible', 'otium-yachtfolio-sync'),
+                            (string) $row['yacht_name']
+                        );
+                        break;
+                    }
+                    wp_update_post([
+                        'ID'          => $postId,
+                        'post_status' => $operation === 'publish' ? 'publish' : 'draft',
+                    ]);
+                    $done++;
+                    break;
+
                 case 'sync':
                 case 'dry_run':
                     $result = $this->plugin->orchestrator()->sync_yacht($yfId, [
@@ -257,10 +289,28 @@ final class Ajax
             }
         }
 
+        $summary = sprintf(
+            /* translators: %d: number of yachts */
+            _n('%d yacht processed.', '%d yachts processed.', $done, 'otium-yachtfolio-sync'),
+            $done
+        );
+
+        if ($skipped !== []) {
+            $summary .= ' ' . sprintf(
+                /* translators: 1: number skipped, 2: reasons */
+                __('%1$d skipped — %2$s', 'otium-yachtfolio-sync'),
+                count($skipped),
+                implode('; ', array_slice($skipped, 0, 5))
+            );
+        }
+        if ($messages !== []) {
+            $summary .= ' ' . implode(' | ', array_slice($messages, 0, 5));
+        }
+
         wp_send_json_success([
             'processed' => $done,
-            'message'   => sprintf(__('%d yacht(s) processed.', 'otium-yachtfolio-sync'), $done)
-                . ($messages === [] ? '' : ' ' . implode(' | ', array_slice($messages, 0, 5))),
+            'skipped'   => count($skipped),
+            'message'   => $summary,
         ]);
     }
 

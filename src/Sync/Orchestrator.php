@@ -356,6 +356,9 @@ final class Orchestrator
                 'last_error'           => null,
                 'last_synced_at'       => current_time('mysql', true),
                 'selected'             => 1,
+                // Index of the post's presence markers so the admin list can
+                // sort and filter on completeness in SQL.
+                'data_score'           => \Otium\Yachtfolio\Write\DataScore::of($postId),
             ]);
 
             // A successful sync means the brochure scope is fine again.
@@ -478,6 +481,9 @@ final class Orchestrator
             $map->update($yfId, [
                 'image_count' => $this->plugin->mediaLedger()->count_for($yfId),
                 'media_total' => $result['imported'] + $result['skipped'] + $result['failed'],
+                // The gallery is one of the scored sections, so importing media
+                // can move the score on its own.
+                'data_score'  => \Otium\Yachtfolio\Write\DataScore::of($postId),
             ]);
 
             if ($runId !== '') {

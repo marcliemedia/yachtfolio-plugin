@@ -149,7 +149,7 @@ final class YachtMapStore
     }
 
     /**
-     * @param array{status?:string,selected?:bool,owned?:bool,linked?:bool,attention?:bool,search?:string,orderby?:string,order?:string,limit?:int,offset?:int} $args
+     * @param array{status?:string,selected?:bool,owned?:bool,linked?:bool,attention?:bool,incomplete?:bool,search?:string,orderby?:string,order?:string,limit?:int,offset?:int} $args
      * @return array<int,array<string,mixed>>
      */
     public function all(array $args = []): array
@@ -158,7 +158,7 @@ final class YachtMapStore
 
         [$where, $params] = $this->build_where($args);
 
-        $allowed = ['yf_id', 'yacht_name', 'status', 'last_modified_remote', 'last_synced_at', 'image_count', 'post_id'];
+        $allowed = ['yf_id', 'yacht_name', 'status', 'last_modified_remote', 'last_synced_at', 'image_count', 'post_id', 'data_score'];
         $orderby = in_array($args['orderby'] ?? '', $allowed, true) ? $args['orderby'] : 'yacht_name';
         $order   = strtoupper($args['order'] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
         $limit   = max(1, min(1000, (int) ($args['limit'] ?? 100)));
@@ -203,6 +203,13 @@ final class YachtMapStore
         }
         if (!empty($args['attention'])) {
             $where[] = "attention <> ''";
+        }
+        // Imported but missing at least one of the sections DataScore counts.
+        // Unlinked rows are excluded on purpose: "not imported yet" is a
+        // different problem from "imported and came back half empty".
+        if (!empty($args['incomplete'])) {
+            $where[] = 'post_id IS NOT NULL AND data_score < %d';
+            $params[] = \Otium\Yachtfolio\Write\DataScore::MAX;
         }
         if (!empty($args['search'])) {
             $where[] = '(yacht_name LIKE %s OR yf_id = %d)';
