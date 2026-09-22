@@ -462,62 +462,43 @@ final class YachtMapStore
     }
 
     /**
-     * Reconcile detail availability for every linked, already-synced yacht.
+     * Reconcile detail availability against the ownership the feed just
+     * reported.
      *
-     * Deliberately a STANDING-STATE sweep, not a 1->0 transition check: the
-     * four affected yachts had already slipped to owned=0 before any of this
-     * existed, and a transition check would never have noticed them. Comparing
-     * the world against the current owned set each run cannot miss a yacht.
+     * Owned yachts get the flag cleared. A yacht is flagged only when it has
+     * just LOST ownership — the transition `reconcile_owned()` already returns.
      *
-     * @param array<int,int> $ownedIds ids the feed just returned detail for
+     * This used to be a standing-state sweep: anything linked, synced and not
+     * currently owned was flagged. That was serviceable while only the owned
+     * yachts had been imported, but Yachtfolio returns a structured detail
+     * record for owned yachts alone — 5 of 466. Once the whole catalogue is
+     * imported the standing rule flags 461 perfectly healthy yachts, makes the
+     * Alerts count meaningless, and buries the one yacht that genuinely
+     * regressed. For a yacht that never had detail there is nothing missing:
+     * the brochure is its documented source.
+     *
+     * The original reason for the standing sweep — four yachts that had slipped
+     * to owned=0 before any of this existed — was a one-time backfill, and it
+     * has long since been applied.
+     *
+     * @param array<int,int> $ownedIds  ids the feed just returned detail for
+     * @param array<int,int> $lostOwned ids that were owned and no longer are
      * @return array{flagged:array<int,int>,cleared:array<int,int>}
      */
-    public function sweep_detail_availability(array $ownedIds): array
+    public function sweep_detail_availability(array $ownedIds, array $lostOwned = []): array
     {
-        global $wpdb;
-
         $flagged = [];
         $cleared = [];
 
-        $rows = $wpdb->get_results(
-            'SELECT yf_id, payload_hash, status, authorisation_last_ok_at FROM ' . self::table()
-            . ' WHERE post_id IS NOT NULL',
-            ARRAY_A
-        );
-
-        foreach (is_array($rows) ? $rows : [] as $row) {
-            $yfId = (int) $row['yf_id'];
-            $everSynced = (string) $row['payload_hash'] !== '' || (string) $row['status'] === self::STATUS_SYNCED;
-            if (!$everSynced) {
-                continue; // never had a detail record, so none was lost
+        foreach ($ownedIds as $yfId) {
+            if ($this->clear_detail_unavailable((int) $yfId)) {
+                $cleared[] = (int) $yfId;
             }
+        }
 
-            if (in_array($yfId, $ownedIds, true)) {
-                if ($this->clear_detail_unavailable($yfId)) {
-                    $cleared[] = $yfId;
-                }
-                continue;
-            }
-
-            /**
-             * A loss requires prior possession.
-             *
-             * Yachtfolio only returns a structured detail record for yachts the
-             * key owns — 5 of 466. For the other 461 the brochure is the
-             * documented source and there is nothing missing. While only owned
-             * yachts were imported, "not owned" was a usable proxy for "lost";
-             * once the whole catalogue is imported it flags 461 healthy yachts
-             * and buries the handful that genuinely regressed.
-             *
-             * `authorisation_last_ok_at` is stamped when the feed last returned
-             * detail for the yacht, so a NULL means it never did.
-             */
-            if ($row['authorisation_last_ok_at'] === null) {
-                continue;
-            }
-
-            if ($this->flag_detail_unavailable($yfId)) {
-                $flagged[] = $yfId;
+        foreach ($lostOwned as $yfId) {
+            if ($this->flag_detail_unavailable((int) $yfId)) {
+                $flagged[] = (int) $yfId;
             }
         }
 

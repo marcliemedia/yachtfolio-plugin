@@ -98,9 +98,12 @@ final class Orchestrator
                     // withdrawn authorisation stayed invisible for ever.
                     $ownedIds = array_map('intval', array_keys($bulk));
 
-                    $map->reconcile_owned($ownedIds);
+                    // reconcile_owned() returns exactly the yachts that were
+                    // owned and no longer are — the transition, which is what a
+                    // lost detail record actually is. It used to be discarded.
+                    $lostOwnership = $map->reconcile_owned($ownedIds);
 
-                    $sweep = $map->sweep_detail_availability($ownedIds);
+                    $sweep = $map->sweep_detail_availability($ownedIds, $lostOwnership);
                     $summary['detail_unavailable'] = $sweep['flagged'];
                     $summary['detail_regained'] = $sweep['cleared'];
 
