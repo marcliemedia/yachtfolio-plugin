@@ -1140,11 +1140,14 @@ body.oy-yf-screen {
 	overflow-wrap: anywhere;
 }
 
-/* A flag longer than its column would otherwise be sliced mid-word. */
+/* A flag longer than its column used to be sliced mid-word.
+   `.oy-pill` sets `white-space: nowrap` on itself, so relaxing it on the cell
+   changed nothing — it has to be relaxed on the pill. Ellipsis would hide the
+   difference between "no description" and "no prices", which is the one thing
+   the column exists to show, so these wrap instead. */
 .oy-yf .wp-list-table .column-attention .oy-pill {
 	max-width: 100%;
-	overflow: hidden;
-	text-overflow: ellipsis;
+	white-space: normal;
 	display: inline-block;
 }
 
