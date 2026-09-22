@@ -1168,9 +1168,13 @@ body.oy-yf-screen {
 
 .oy-yf .wp-list-table tr .row-actions { visibility: visible; }
 
-.oy-yf .row-actions span { white-space: nowrap; }
+/* WordPress puts the " | " separator and its whitespace INSIDE each span, so
+   making the span nowrap removed every break opportunity in the line and the
+   tail of the action list was clipped. The link is what must stay intact. */
+.oy-yf .row-actions span { white-space: normal; }
 
 .oy-yf .row-actions a {
+	white-space: nowrap;
 	color: var(--oy-accent-ink);
 	text-decoration: none;
 	font-weight: 550;

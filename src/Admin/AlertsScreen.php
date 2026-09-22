@@ -105,14 +105,20 @@ final class AlertsScreen
         echo '<table class="oy-table"><thead><tr>'
             . '<th>' . esc_html__('Yacht', 'otium-yachtfolio-sync') . '</th>'
             . '<th>' . esc_html__('Condition', 'otium-yachtfolio-sync') . '</th>'
-            . '<th>' . esc_html__('What it means', 'otium-yachtfolio-sync') . '</th>'
             . '<th>' . esc_html__('Last good', 'otium-yachtfolio-sync') . '</th>'
             . '<th>' . esc_html__('Do', 'otium-yachtfolio-sync') . '</th>'
             . '</tr></thead><tbody>';
 
+        // The meaning of a condition is a property of the condition, not of the
+        // yacht. Printed per row it was the same sentence five times over; it is
+        // collected here and explained once below the table.
+        $present = [];
+
         foreach ($rows as $row) {
             $yfId  = (int) $row['yf_id'];
-            $flags = YachtMapStore::split_flags((string) $row['attention']);
+            foreach (YachtMapStore::split_flags((string) $row['attention']) as $flag) {
+                $present[$flag] = true;
+            }
 
             echo '<tr>';
 
@@ -124,8 +130,6 @@ final class AlertsScreen
             );
 
             echo '<td>' . Menu::flag_pills((string) $row['attention']) . '</td>';
-
-            echo '<td><span class="oy-clamp">' . esc_html($this->explain($flags)) . '</span></td>';
 
             printf(
                 '<td class="oy-nowrap">%s</td>',
@@ -147,9 +151,20 @@ final class AlertsScreen
 
         echo '</tbody></table>';
 
-        echo '<p class="oy-legend">'
-            . esc_html__('If a yacht should still be chartered by Otium, ask Yachtfolio to restore the detail authorisation for it. Until then the brochure remains the only source for that yacht.', 'otium-yachtfolio-sync')
-            . '</p>';
+        echo '<div class="oy-legend">';
+        foreach (array_keys($present) as $flag) {
+            printf(
+                '<p>%s <strong>%s</strong> — %s</p>',
+                Menu::flag_pills($flag),
+                esc_html($flag),
+                esc_html($this->explain([$flag]))
+            );
+        }
+        printf(
+            '<p>%s</p>',
+            esc_html__('If a yacht should still be chartered by Otium, ask Yachtfolio to restore the detail authorisation for it. Until then the brochure remains the only source for that yacht.', 'otium-yachtfolio-sync')
+        );
+        echo '</div>';
 
         echo '</section>';
     }
