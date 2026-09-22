@@ -232,7 +232,7 @@
 				notice(data.message, 'success');
 			}
 
-			if (response.success && ['oy_yf_sync_one', 'oy_yf_publish', 'oy_yf_unpublish', 'oy_yf_toggle_visible', 'oy_yf_toggle_selected', 'oy_yf_unlink'].indexOf(action) !== -1) {
+			if (response.success && ['oy_yf_sync_one', 'oy_yf_fetch_media', 'oy_yf_publish', 'oy_yf_unpublish', 'oy_yf_toggle_visible', 'oy_yf_toggle_selected', 'oy_yf_unlink'].indexOf(action) !== -1) {
 				window.setTimeout(function () {
 					window.location.reload();
 				}, 900);

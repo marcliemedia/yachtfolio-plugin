@@ -1400,6 +1400,16 @@ body.oy-yf-screen {
 	background: var(--oy-n-300);
 }
 
+/* The "get photos" control sits under the meter it explains, so the gap the
+   meter shows and the action that fills it read as one thing. */
+.oy-fetch {
+	margin-top: var(--oy-2);
+	width: 100%;
+	justify-content: center;
+	white-space: nowrap;
+}
+
+
 .oy-meter__seg.is-on { background: var(--oy-p-600); }
 
 .oy-meter--full .oy-meter__seg.is-on { background: var(--oy-ok-fg); }

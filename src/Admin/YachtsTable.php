@@ -83,10 +83,13 @@ final class YachtsTable extends \WP_List_Table
      */
     private function guide(): void
     {
+        // Text arrives for every yacht automatically; photos are a deliberate,
+        // per-yacht decision because they are the expensive part. The steps say
+        // so, and step 2 names the button that does it.
         $steps = [
-            __('Select it for sync', 'otium-yachtfolio-sync'),
-            __('Set it Visible to allow media and publishing', 'otium-yachtfolio-sync'),
-            __('Run a sync pass, then publish when it looks right', 'otium-yachtfolio-sync'),
+            __('Text is imported for every yacht already', 'otium-yachtfolio-sync'),
+            __('Press "Get N photos" in the Data column for the ones you sell', 'otium-yachtfolio-sync'),
+            __('Check the yacht, then Publish', 'otium-yachtfolio-sync'),
         ];
 
         echo '<div class="oy-guide">';
@@ -534,13 +537,14 @@ final class YachtsTable extends \WP_List_Table
             );
         }
 
-        // Media progress is part of the same question, so it rides along in the
-        // label rather than occupying a column of its own.
-        $media = (int) $item['media_total'] > 0
-            ? sprintf(' · %d/%d img', (int) $item['image_count'], (int) $item['media_total'])
-            : '';
+        $have  = (int) $item['image_count'];
+        $offer = (int) $item['media_total'];
 
-        return sprintf(
+        // Media progress rides along in the label rather than occupying a
+        // column of its own.
+        $media = $offer > 0 ? sprintf(' · %d/%d img', $have, $offer) : '';
+
+        $meter = sprintf(
             '<span class="oy-meter%s" title="%s"><span class="oy-meter__bar">%s</span>'
             . '<span class="oy-meter__label">%d/%d%s</span></span>',
             $tone,
@@ -550,6 +554,31 @@ final class YachtsTable extends \WP_List_Table
             $total,
             esc_html($media)
         );
+
+        // The import deliberately brings text without photos, so most rows sit
+        // here with nothing. Before this button the only way to get them was to
+        // know that the Visible switch also gates media — which its label never
+        // says. The count is what will actually be fetched: unique files after
+        // the duplicate buckets are removed and the per-yacht cap applied.
+        if ($have === 0 && $offer > 0) {
+            $meter .= sprintf(
+                '<button type="button" class="oy-btn oy-btn--sm oy-yf-action oy-fetch"'
+                . ' data-action="oy_yf_fetch_media" data-yacht="%d" title="%s">%s</button>',
+                (int) $item['yf_id'],
+                esc_attr(sprintf(
+                    /* translators: %d: number of photos */
+                    __('Downloads %d photos from Yachtfolio and marks the yacht visible. Takes a few seconds per photo.', 'otium-yachtfolio-sync'),
+                    $offer
+                )),
+                sprintf(
+                    /* translators: %d: number of photos */
+                    esc_html__('Get %d photos', 'otium-yachtfolio-sync'),
+                    $offer
+                )
+            );
+        }
+
+        return $meter;
     }
 
     /** @param array<string,mixed> $item */

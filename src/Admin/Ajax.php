@@ -15,6 +15,7 @@ final class Ajax
         'oy_yf_sync_one',
         'oy_yf_dry_run',
         'oy_yf_show_json',
+        'oy_yf_fetch_media',
         'oy_yf_toggle_visible',
         'oy_yf_toggle_selected',
         'oy_yf_publish',
@@ -53,6 +54,7 @@ final class Ajax
                 'oy_yf_sync_one'          => $this->sync_one($yfId),
                 'oy_yf_dry_run'           => $this->dry_run($yfId),
                 'oy_yf_show_json'         => $this->show_json($yfId),
+                'oy_yf_fetch_media'       => $this->fetch_media($yfId),
                 'oy_yf_toggle_visible'    => $this->toggle_visible($yfId),
                 'oy_yf_toggle_selected'   => $this->toggle_selected($yfId),
                 'oy_yf_publish'           => $this->set_status($yfId, 'publish'),
@@ -124,6 +126,58 @@ final class Ajax
         wp_send_json_success([
             'json'  => (string) Secrets::scrub($pretty),
             'title' => (string) $row['yacht_name'],
+        ]);
+    }
+
+    /**
+     * Fetches a yacht's photos on demand.
+     *
+     * The import brings text for every yacht but no images, because images are
+     * the expensive part. Until now the only way to get them was to know that
+     * the Visible switch also gates media — which the label does not say. This
+     * is the explicit action: one click, states what it will do, and reports
+     * what it did.
+     *
+     * Opening the gate is part of the operation, not a separate step the admin
+     * has to discover.
+     */
+    private function fetch_media(int $yfId): void
+    {
+        $row = $this->require_yacht($yfId);
+        $postId = (int) ($row['post_id'] ?? 0);
+        if ($postId <= 0) {
+            wp_send_json_error([
+                'message' => __('Import this yacht first — there is no post to attach photos to.', 'otium-yachtfolio-sync'),
+            ]);
+        }
+
+        update_post_meta($postId, 'yf_visible', 'true');
+
+        $result = $this->plugin->orchestrator()->sync_media($yfId);
+
+        if (empty($result['ok'])) {
+            wp_send_json_error([
+                'message' => (string) ($result['message'] ?? __('Could not fetch the photos.', 'otium-yachtfolio-sync')),
+            ]);
+        }
+
+        $imported = (int) ($result['imported'] ?? 0);
+        $failed   = (int) ($result['failed'] ?? 0);
+
+        wp_send_json_success([
+            'imported' => $imported,
+            'message'  => $failed > 0
+                ? sprintf(
+                    /* translators: 1: imported count, 2: failed count */
+                    __('%1$d photos imported, %2$d failed — see the log.', 'otium-yachtfolio-sync'),
+                    $imported,
+                    $failed
+                )
+                : sprintf(
+                    /* translators: %d: number of photos */
+                    _n('%d photo imported.', '%d photos imported.', $imported, 'otium-yachtfolio-sync'),
+                    $imported
+                ),
         ]);
     }
 

@@ -339,10 +339,19 @@ final class Orchestrator
             $created = $postId === null;
             $postId = $writer->apply($payload, $mapResult, $postId);
 
-            $mediaTotal = 0;
+            // Count what will actually be imported, not what the buckets add up
+            // to. EXTERIOR/INTERIOR/LIFESTYLE are largely subsets of FULL, so a
+            // plain sum overstates by ~43% (ANNABEL II: 85 summed, 43 unique),
+            // and the cap trims it further. The admin sees this number as
+            // "≈ N photos" before deciding to fetch them, so it has to be true.
+            $unique = [];
             foreach ((array) $settings->get('media_galleries', ['FULL', 'LAYOUT']) as $bucket) {
-                $mediaTotal += count($payload->gallery(strtoupper((string) $bucket)));
+                foreach ($payload->gallery(strtoupper((string) $bucket)) as $item) {
+                    $unique[(string) $item['id_file']] = true;
+                }
             }
+            $cap = (int) $settings->get('media_cap_per_yacht', 120);
+            $mediaTotal = $cap > 0 ? min(count($unique), $cap) : count($unique);
 
             $map->update($yfId, [
                 'post_id'              => $postId,
