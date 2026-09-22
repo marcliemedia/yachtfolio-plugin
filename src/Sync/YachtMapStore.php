@@ -480,7 +480,8 @@ final class YachtMapStore
         $cleared = [];
 
         $rows = $wpdb->get_results(
-            'SELECT yf_id, payload_hash, status FROM ' . self::table() . ' WHERE post_id IS NOT NULL',
+            'SELECT yf_id, payload_hash, status, authorisation_last_ok_at FROM ' . self::table()
+            . ' WHERE post_id IS NOT NULL',
             ARRAY_A
         );
 
@@ -490,11 +491,32 @@ final class YachtMapStore
             if (!$everSynced) {
                 continue; // never had a detail record, so none was lost
             }
+
             if (in_array($yfId, $ownedIds, true)) {
                 if ($this->clear_detail_unavailable($yfId)) {
                     $cleared[] = $yfId;
                 }
-            } elseif ($this->flag_detail_unavailable($yfId)) {
+                continue;
+            }
+
+            /**
+             * A loss requires prior possession.
+             *
+             * Yachtfolio only returns a structured detail record for yachts the
+             * key owns — 5 of 466. For the other 461 the brochure is the
+             * documented source and there is nothing missing. While only owned
+             * yachts were imported, "not owned" was a usable proxy for "lost";
+             * once the whole catalogue is imported it flags 461 healthy yachts
+             * and buries the handful that genuinely regressed.
+             *
+             * `authorisation_last_ok_at` is stamped when the feed last returned
+             * detail for the yacht, so a NULL means it never did.
+             */
+            if ($row['authorisation_last_ok_at'] === null) {
+                continue;
+            }
+
+            if ($this->flag_detail_unavailable($yfId)) {
                 $flagged[] = $yfId;
             }
         }
