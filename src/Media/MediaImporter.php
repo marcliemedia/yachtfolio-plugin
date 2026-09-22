@@ -206,7 +206,7 @@ final class MediaImporter
         $attachmentId = (int) $attachmentId;
         $metadata = wp_generate_attachment_metadata($attachmentId, $upload['file']);
         if (is_array($metadata)) {
-            $metadata = $this->drop_oversized_original($metadata, $upload['file'], $yfId);
+            $metadata = $this->drop_oversized_original($metadata, $attachmentId, $yfId);
             wp_update_attachment_metadata($attachmentId, $metadata);
         }
 
@@ -245,7 +245,7 @@ final class MediaImporter
      * @param array<string,mixed> $metadata
      * @return array<string,mixed>
      */
-    private function drop_oversized_original(array $metadata, string $scaledPath, int $yfId): array
+    private function drop_oversized_original(array $metadata, int $attachmentId, int $yfId): array
     {
         if (!$this->settings->bool('drop_oversized_originals')) {
             return $metadata;
@@ -256,10 +256,20 @@ final class MediaImporter
             return $metadata;
         }
 
-        $path = trailingslashit(dirname($scaledPath)) . $original;
+        // The file being SERVED is whatever wp_generate_attachment_metadata()
+        // left on the attachment — it repoints `_wp_attached_file` at the
+        // `-scaled` copy when it scales. The upload path cannot be used for
+        // this comparison: it still names the untouched original, so guarding
+        // against it matched every time and the drop never ran.
+        $served = (string) get_attached_file($attachmentId);
+        if ($served === '') {
+            return $metadata;
+        }
+
+        $path = trailingslashit(dirname($served)) . $original;
 
         // Never delete the file actually being served.
-        if ($path === $scaledPath || !is_file($path)) {
+        if ($path === $served || !is_file($path)) {
             return $metadata;
         }
 
