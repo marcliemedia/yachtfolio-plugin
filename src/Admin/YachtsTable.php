@@ -110,9 +110,14 @@ final class YachtsTable extends \WP_List_Table
             'cb'         => '<input type="checkbox">',
             'yacht_name' => __('Yacht', 'otium-yachtfolio-sync'),
             'post'       => __('WordPress post', 'otium-yachtfolio-sync'),
+            // The two switches are the whole import model: Selected decides
+            // whether a pass touches the yacht at all, Visible decides whether
+            // its media is fetched and whether it may be published. They sit
+            // together, in that order, because that is the order they apply in.
+            'selected'   => __('Selected', 'otium-yachtfolio-sync'),
             'visible'    => __('Visible', 'otium-yachtfolio-sync'),
             'status'     => __('Sync', 'otium-yachtfolio-sync'),
-            'images'     => __('Images', 'otium-yachtfolio-sync'),
+            'data'       => __('Data', 'otium-yachtfolio-sync'),
             'modified'   => __('Feed modified', 'otium-yachtfolio-sync'),
             'synced'     => __('Last synced', 'otium-yachtfolio-sync'),
             'attention'  => __('Attention', 'otium-yachtfolio-sync'),
@@ -215,6 +220,20 @@ final class YachtsTable extends \WP_List_Table
         $this->items = $map->all($args);
         $total = $map->count($countArgs);
 
+        // Visible and Data both read post meta for every row. Without priming,
+        // rendering 25 rows costs 25 separate meta queries; one call warms the
+        // cache for the whole page.
+        $postIds = [];
+        foreach ($this->items as $row) {
+            $postId = (int) ($row['post_id'] ?? 0);
+            if ($postId > 0) {
+                $postIds[] = $postId;
+            }
+        }
+        if ($postIds !== []) {
+            update_meta_cache('post', $postIds);
+        }
+
         $this->_column_headers = [$this->get_columns(), [], $this->get_sortable_columns()];
         $this->set_pagination_args([
             'total_items' => $total,
@@ -294,11 +313,8 @@ final class YachtsTable extends \WP_List_Table
             $actions['unlink'] = $this->action_link($yfId, 'oy_yf_unlink', __('Unlink', 'otium-yachtfolio-sync'));
         }
 
-        $actions['selected'] = $this->action_link(
-            $yfId,
-            'oy_yf_toggle_selected',
-            $item['selected'] ? __('Unselect', 'otium-yachtfolio-sync') : __('Select', 'otium-yachtfolio-sync')
-        );
+        // "Select/Unselect" used to live here too; the Selected switch states
+        // the same thing and can be operated without reading a link label.
 
         return $name . $this->row_actions($actions);
     }
@@ -326,25 +342,67 @@ final class YachtsTable extends \WP_List_Table
     }
 
     /** @param array<string,mixed> $item */
+    protected function column_selected($item): string
+    {
+        return $this->switch_control(
+            (int) $item['yf_id'],
+            'oy_yf_toggle_selected',
+            !empty($item['selected']),
+            __('Selected', 'otium-yachtfolio-sync'),
+            __('Skipped', 'otium-yachtfolio-sync'),
+            __('Included in every sync pass. Switch off to leave this yacht alone.', 'otium-yachtfolio-sync'),
+            __('Ignored by sync passes. Switch on to start importing it.', 'otium-yachtfolio-sync')
+        );
+    }
+
+    /** @param array<string,mixed> $item */
     protected function column_visible($item): string
     {
         $postId = (int) ($item['post_id'] ?? 0);
         if ($postId <= 0) {
-            return '<span class="oy-muted">—</span>';
+            // Visibility lives on the post; without one there is nothing to set.
+            return sprintf(
+                '<span class="oy-muted" title="%s">—</span>',
+                esc_attr__('Available once the yacht has been imported and linked to a post', 'otium-yachtfolio-sync')
+            );
         }
-        $on = (string) get_post_meta($postId, 'yf_visible', true) === 'true';
 
-        // The button carries the current state; the title says what clicking does,
-        // because a lone "Visible" label reads as a claim, not a control.
-        return sprintf(
-            '<button type="button" class="oy-btn oy-btn--sm oy-yf-toggle" data-action="oy_yf_toggle_visible" data-yacht="%d" title="%s">%s</button>',
+        return $this->switch_control(
             (int) $item['yf_id'],
-            $on
-                ? esc_attr__('Click to hide this yacht', 'otium-yachtfolio-sync')
-                : esc_attr__('Click to make this yacht visible', 'otium-yachtfolio-sync'),
-            $on
-                ? esc_html__('Visible', 'otium-yachtfolio-sync')
-                : esc_html__('Hidden', 'otium-yachtfolio-sync')
+            'oy_yf_toggle_visible',
+            (string) get_post_meta($postId, 'yf_visible', true) === 'true',
+            __('Visible', 'otium-yachtfolio-sync'),
+            __('Hidden', 'otium-yachtfolio-sync'),
+            __('Media is imported and the yacht may be published.', 'otium-yachtfolio-sync'),
+            __('No media is imported and the yacht must not be published.', 'otium-yachtfolio-sync')
+        );
+    }
+
+    /**
+     * A real switch rather than a button labelled with its own state: "Visible"
+     * on a button reads as a description of the row, not as something you can
+     * change. `role="switch"` plus `aria-checked` gives assistive technology the
+     * same two-state meaning the graphic carries.
+     */
+    private function switch_control(
+        int $yfId,
+        string $action,
+        bool $on,
+        string $onLabel,
+        string $offLabel,
+        string $onHint,
+        string $offHint
+    ): string {
+        return sprintf(
+            '<button type="button" role="switch" aria-checked="%s" class="oy-switch oy-yf-toggle"'
+            . ' data-action="%s" data-yacht="%d" title="%s">'
+            . '<span class="oy-switch__track" aria-hidden="true"><span class="oy-switch__thumb"></span></span>'
+            . '<span class="oy-switch__label">%s</span></button>',
+            $on ? 'true' : 'false',
+            esc_attr($action),
+            $yfId,
+            esc_attr($on ? $onHint : $offHint),
+            esc_html($on ? $onLabel : $offLabel)
         );
     }
 
@@ -368,24 +426,75 @@ final class YachtsTable extends \WP_List_Table
         return $html;
     }
 
-    /** @param array<string,mixed> $item */
-    protected function column_images($item): string
+    /**
+     * How much of a yacht is actually populated.
+     *
+     * The importer already records presence markers on the post — it does not
+     * need to be recomputed or guessed here. A five-segment bar is used instead
+     * of a text chip because this column is read down 25 rows at a time: "which
+     * yachts are empty" is a shape question, and a bar answers it without
+     * reading a word.
+     *
+     * @param array<string,mixed> $item
+     */
+    protected function column_data($item): string
     {
-        $have = (int) $item['image_count'];
-        $want = (int) $item['media_total'];
-
-        if ($want === 0 && $have === 0) {
-            return '<span class="oy-muted">—</span>';
+        $postId = (int) ($item['post_id'] ?? 0);
+        if ($postId <= 0) {
+            return sprintf(
+                '<span class="oy-muted" title="%s">%s</span>',
+                esc_attr__('Not imported yet, so there is nothing to measure', 'otium-yachtfolio-sync'),
+                esc_html__('not imported', 'otium-yachtfolio-sync')
+            );
         }
 
-        $complete = $want > 0 && $have >= $want;
+        $parts = [
+            'yf_has_rates'     => __('Rates', 'otium-yachtfolio-sync'),
+            'yf_has_amenities' => __('Amenities', 'otium-yachtfolio-sync'),
+            'yf_has_crew'      => __('Crew', 'otium-yachtfolio-sync'),
+            'yf_has_toys'      => __('Toys', 'otium-yachtfolio-sync'),
+            'yf_has_gallery'   => __('Gallery', 'otium-yachtfolio-sync'),
+        ];
+
+        $have = [];
+        $missing = [];
+        $bar = '';
+
+        foreach ($parts as $key => $label) {
+            // The marker is the count when present and an empty string when not.
+            $on = (string) get_post_meta($postId, $key, true) !== '';
+            $on ? $have[] = $label : $missing[] = $label;
+            $bar .= sprintf('<span class="oy-meter__seg%s"></span>', $on ? ' is-on' : '');
+        }
+
+        $filled = count($have);
+        $total  = count($parts);
+
+        $tone = $filled === $total ? ' oy-meter--full' : ($filled === 0 ? ' oy-meter--empty' : '');
+
+        $tooltip = $filled === $total
+            ? __('Complete: rates, amenities, crew, toys and gallery are all present.', 'otium-yachtfolio-sync')
+            : sprintf(
+                /* translators: %s: comma separated list of missing sections */
+                __('Missing: %s', 'otium-yachtfolio-sync'),
+                implode(', ', $missing)
+            );
+
+        // Media progress is part of the same question, so it rides along in the
+        // label rather than occupying a column of its own.
+        $media = (int) $item['media_total'] > 0
+            ? sprintf(' · %d/%d img', (int) $item['image_count'], (int) $item['media_total'])
+            : '';
 
         return sprintf(
-            '<span class="oy-nowrap%s" title="%s">%d / %d</span>',
-            $complete ? '' : ' oy-muted',
-            esc_attr__('Imported files / files offered by the feed', 'otium-yachtfolio-sync'),
-            $have,
-            $want
+            '<span class="oy-meter%s" title="%s"><span class="oy-meter__bar">%s</span>'
+            . '<span class="oy-meter__label">%d/%d%s</span></span>',
+            $tone,
+            esc_attr($tooltip),
+            $bar,
+            $filled,
+            $total,
+            esc_html($media)
         );
     }
 

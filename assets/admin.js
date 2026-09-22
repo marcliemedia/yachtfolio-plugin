@@ -176,9 +176,21 @@
 	/* ---------------- row actions ---------------- */
 
 	function runAction(button, action, yachtId) {
-		var label = button.textContent;
+		// A switch is built from child elements. Overwriting textContent would
+		// delete the track and thumb and never put them back, so only plain
+		// text controls get the "Working…" swap; the rest flip a class and,
+		// for a switch, aria-checked so the graphic moves immediately.
+		var isSwitch = button.getAttribute('role') === 'switch';
+		var plainText = !isSwitch && button.children.length === 0;
+		var label = plainText ? button.textContent : null;
+
 		button.classList.add('oy-busy');
-		button.textContent = i18n.working || 'Working…';
+		if (plainText) {
+			button.textContent = i18n.working || 'Working…';
+		}
+		if (isSwitch) {
+			button.setAttribute('aria-checked', button.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+		}
 
 		post(action, { yacht: yachtId }).then(function (response) {
 			var data = response && response.data ? response.data : {};
@@ -198,9 +210,15 @@
 			}
 		}).catch(function (error) {
 			notice(error.message || i18n.failed || 'Request failed.', 'error');
+			// The optimistic flip was wrong: put it back.
+			if (isSwitch) {
+				button.setAttribute('aria-checked', button.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+			}
 		}).finally(function () {
 			button.classList.remove('oy-busy');
-			button.textContent = label;
+			if (plainText) {
+				button.textContent = label;
+			}
 		});
 	}
 
