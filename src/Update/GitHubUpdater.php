@@ -70,11 +70,11 @@ final class GitHubUpdater
             return $update;
         }
 
-        $installed = (string) ($plugin_data['Version'] ?? OY_YF_VERSION);
-        if (version_compare($release['version'], $installed, '<=')) {
-            return $update;
-        }
-
+        // The release is returned even when it is not newer. WordPress compares
+        // the versions itself and files the result under `response` or
+        // `no_update`; returning false when up to date would leave the plugin in
+        // neither bucket, which is what hides the "Enable auto-updates" control
+        // on the Plugins screen.
         return [
             'id'           => 'github.com/' . self::OWNER . '/' . self::REPO,
             'slug'         => self::DIR,
