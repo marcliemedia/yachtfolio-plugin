@@ -26,10 +26,14 @@ final class LogsScreen
         $filters = $this->filters();
         $rows = $this->plugin->logger()->query($filters + ['limit' => 200]);
 
-        echo '<div class="wrap oy-yf"><h1>' . esc_html__('Logs', 'otium-yachtfolio-sync') . '</h1>';
+        Menu::open_page(
+            Menu::SLUG_LOGS,
+            __('Logs', 'otium-yachtfolio-sync'),
+            __('Every sync decision is recorded here, including values kept instead of overwritten.', 'otium-yachtfolio-sync')
+        );
 
         /* filters */
-        echo '<form method="get" class="oy-yf-filters">';
+        echo '<form method="get" class="oy-filters">';
         printf('<input type="hidden" name="page" value="%s">', esc_attr(Menu::SLUG_LOGS));
 
         printf(
@@ -66,7 +70,7 @@ final class LogsScreen
         echo '</form>';
 
         /* export + purge */
-        echo '<p class="oy-yf-actions">';
+        echo '<p class="oy-actions">';
         echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="display:inline">';
         wp_nonce_field('oy_yf_logs');
         echo '<input type="hidden" name="action" value="oy_yf_logs_export">';
@@ -88,7 +92,7 @@ final class LogsScreen
         echo '</form></p>';
 
         /* table */
-        echo '<table class="widefat striped oy-yf-logs"><thead><tr>'
+        echo '<table class="oy-table oy-logs"><thead><tr>'
             . '<th>' . esc_html__('Time (UTC)', 'otium-yachtfolio-sync') . '</th>'
             . '<th>' . esc_html__('Level', 'otium-yachtfolio-sync') . '</th>'
             . '<th>' . esc_html__('Stage', 'otium-yachtfolio-sync') . '</th>'
@@ -103,7 +107,7 @@ final class LogsScreen
         foreach ($rows as $row) {
             echo '<tr>';
             echo '<td>' . esc_html((string) $row['created_at']) . '</td>';
-            echo '<td><span class="oy-yf-pill oy-yf-level-' . esc_attr((string) $row['level']) . '">' . esc_html((string) $row['level']) . '</span></td>';
+            echo '<td><span class="oy-pill oy-pill--level-' . esc_attr((string) $row['level']) . '">' . esc_html((string) $row['level']) . '</span></td>';
             echo '<td>' . esc_html((string) $row['stage']) . '</td>';
             echo '<td>' . esc_html((string) ($row['yf_id'] ?? '')) . '</td>';
             echo '<td>' . esc_html((string) $row['message']);
@@ -114,7 +118,8 @@ final class LogsScreen
             echo '</td></tr>';
         }
 
-        echo '</tbody></table></div>';
+        echo '</tbody></table>';
+        Menu::close_page();
     }
 
     public function export(): void

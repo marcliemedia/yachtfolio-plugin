@@ -33,9 +33,11 @@ final class YachtsTable extends \WP_List_Table
     {
         $this->prepare_items();
 
-        echo '<div class="wrap oy-yf">';
-        echo '<h1>' . esc_html__('Yachts', 'otium-yachtfolio-sync') . '</h1>';
-        echo '<p class="description">' . esc_html__('Visible controls whether a yacht may be published and whether its media is imported. Nothing here publishes automatically.', 'otium-yachtfolio-sync') . '</p>';
+        Menu::open_page(
+            Menu::SLUG_YACHTS,
+            __('Yachts', 'otium-yachtfolio-sync'),
+            __('Visible controls whether a yacht may be published and whether its media is imported. Nothing here publishes automatically.', 'otium-yachtfolio-sync')
+        );
 
         $this->views();
 
@@ -47,7 +49,7 @@ final class YachtsTable extends \WP_List_Table
         $this->search_box(__('Search yachts', 'otium-yachtfolio-sync'), 'oy-yf-search');
         $this->display();
         echo '</form>';
-        echo '</div>';
+        Menu::close_page();
     }
 
     /** @return array<string,string> */
@@ -181,7 +183,7 @@ final class YachtsTable extends \WP_List_Table
     /** @param array<string,mixed> $item */
     protected function column_yf_id($item): string
     {
-        $badge = $item['owned'] ? ' <span class="oy-yf-pill oy-yf-pill-owned">' . esc_html__('owned', 'otium-yachtfolio-sync') . '</span>' : '';
+        $badge = $item['owned'] ? ' <span class="oy-pill oy-pill--owned">' . esc_html__('owned', 'otium-yachtfolio-sync') . '</span>' : '';
         return '<strong>' . (int) $item['yf_id'] . '</strong>' . $badge;
     }
 
@@ -255,7 +257,7 @@ final class YachtsTable extends \WP_List_Table
             return '<span class="description">' . esc_html__('missing post', 'otium-yachtfolio-sync') . '</span>';
         }
         return sprintf(
-            '<a href="%s">%s</a><br><span class="oy-yf-pill oy-yf-pill-%s">%s</span>',
+            '<a href="%s">%s</a><br><span class="oy-pill oy-pill--%s">%s</span>',
             esc_url((string) get_edit_post_link($postId)),
             esc_html($post->post_title),
             esc_attr($post->post_status),
@@ -272,7 +274,7 @@ final class YachtsTable extends \WP_List_Table
         }
         $on = (string) get_post_meta($postId, 'yf_visible', true) === 'true';
         return sprintf(
-            '<button type="button" class="button button-small oy-yf-toggle" data-action="oy_yf_toggle_visible" data-yacht="%d">%s</button>',
+            '<button type="button" class="oy-btn oy-btn--sm oy-yf-toggle" data-action="oy_yf_toggle_visible" data-yacht="%d">%s</button>',
             (int) $item['yf_id'],
             $on ? esc_html__('Visible', 'otium-yachtfolio-sync') : esc_html__('Hidden', 'otium-yachtfolio-sync')
         );

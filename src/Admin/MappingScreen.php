@@ -26,7 +26,11 @@ final class MappingScreen
     {
         Menu::require_cap();
 
-        echo '<div class="wrap oy-yf"><h1>' . esc_html__('Mapping', 'otium-yachtfolio-sync') . '</h1>';
+        Menu::open_page(
+            Menu::SLUG_MAPPING,
+            __('Mapping', 'otium-yachtfolio-sync'),
+            __('How feed values are translated into meta keys and taxonomy terms. Unmapped values are reported, never guessed.', 'otium-yachtfolio-sync')
+        );
 
         $this->unmapped_panel();
 
@@ -35,13 +39,13 @@ final class MappingScreen
         echo '<input type="hidden" name="action" value="oy_yf_save_mapping">';
 
         /* ---- equipment ---- */
-        echo '<h2>' . esc_html__('Equipment → amenity switcher', 'otium-yachtfolio-sync') . '</h2>';
+        echo '<h2 class="oy-section__title" style="margin:var(--oy-8) 0 var(--oy-2)">' . esc_html__('Equipment → amenity switcher', 'otium-yachtfolio-sync') . '</h2>';
         echo '<p class="description">' . esc_html__('The feed carries exactly 10 equipment types, so only 4 of the 35 amenities_* switchers can be driven by the API. The remaining 31 stay editor-owned and the sync never writes them — otherwise a missing entry would switch off a real amenity.', 'otium-yachtfolio-sync') . '</p>';
 
         $names = $this->plugin->reference()->equipment_names();
         $equipment = EquipmentMap::effective();
 
-        echo '<table class="widefat striped"><thead><tr>'
+        echo '<table class="oy-table"><thead><tr>'
             . '<th>' . esc_html__('Feed equipment', 'otium-yachtfolio-sync') . '</th>'
             . '<th>' . esc_html__('Amenity meta key', 'otium-yachtfolio-sync') . '</th>'
             . '</tr></thead><tbody>';
@@ -60,20 +64,20 @@ final class MappingScreen
         echo '</tbody></table>';
 
         /* ---- yacht type ---- */
-        echo '<h2>' . esc_html__('Yacht type rules', 'otium-yachtfolio-sync') . '</h2>';
+        echo '<h2 class="oy-section__title" style="margin:var(--oy-8) 0 var(--oy-2)">' . esc_html__('Yacht type rules', 'otium-yachtfolio-sync') . '</h2>';
         echo '<p class="description">' . esc_html__('Matched against sail_power, superstructure, hull_configuration and rig (lowercased). Catamaran, Gulet and Mini cruiser have no discriminator in the feed: those yachts keep their existing term and are flagged instead of guessed.', 'otium-yachtfolio-sync') . '</p>';
         $this->pair_table('type', TypeResolver::effective(), __('Feed value', 'otium-yachtfolio-sync'), __('yacht-type term', 'otium-yachtfolio-sync'));
 
         /* ---- areas ---- */
-        echo '<h2>' . esc_html__('Operating area → destination term', 'otium-yachtfolio-sync') . '</h2>';
+        echo '<h2 class="oy-section__title" style="margin:var(--oy-8) 0 var(--oy-2)">' . esc_html__('Operating area → destination term', 'otium-yachtfolio-sync') . '</h2>';
         echo '<p class="description">' . esc_html__('The feed carries 107 areas in 26 groups; map them onto existing destination terms to avoid near-duplicates. Unmapped names are used verbatim.', 'otium-yachtfolio-sync') . '</p>';
         $this->pair_table('area', AreaAlias::effective(), __('Feed area name', 'otium-yachtfolio-sync'), __('yacht-destination term', 'otium-yachtfolio-sync'));
 
         /* ---- field map ---- */
-        echo '<h2>' . esc_html__('Field map', 'otium-yachtfolio-sync') . '</h2>';
+        echo '<h2 class="oy-section__title" style="margin:var(--oy-8) 0 var(--oy-2)">' . esc_html__('Field map', 'otium-yachtfolio-sync') . '</h2>';
         echo '<p class="description">' . esc_html__('Source is a specification key from the feed (dotted paths allowed, e.g. video.video_url). Transform names come from the transform catalogue. Owner "addon" means the sync never touches the field.', 'otium-yachtfolio-sync') . '</p>';
 
-        echo '<table class="widefat striped"><thead><tr>'
+        echo '<table class="oy-table"><thead><tr>'
             . '<th>' . esc_html__('Meta key', 'otium-yachtfolio-sync') . '</th>'
             . '<th>' . esc_html__('Source', 'otium-yachtfolio-sync') . '</th>'
             . '<th>' . esc_html__('Transform', 'otium-yachtfolio-sync') . '</th>'
@@ -96,11 +100,14 @@ final class MappingScreen
         }
         echo '</tbody></table>';
 
-        submit_button(__('Save mapping', 'otium-yachtfolio-sync'));
-        echo ' <button type="submit" class="button" name="oy_yf_reset" value="1" onclick="return confirm(\'' . esc_js(__('Reset every mapping table to its defaults?', 'otium-yachtfolio-sync')) . '\')">'
+        echo '<div class="oy-savebar">';
+        echo '<button type="submit" class="oy-btn oy-btn--danger" name="oy_yf_reset" value="1" onclick="return confirm(\'' . esc_js(__('Reset every mapping table to its defaults?', 'otium-yachtfolio-sync')) . '\')">'
             . esc_html__('Reset to defaults', 'otium-yachtfolio-sync') . '</button>';
+        echo '<button type="submit" class="oy-btn oy-btn--primary">' . esc_html__('Save mapping', 'otium-yachtfolio-sync') . '</button>';
+        echo '</div>';
 
-        echo '</form></div>';
+        echo '</form>';
+        Menu::close_page();
     }
 
     public function save(): void
@@ -157,10 +164,10 @@ final class MappingScreen
         $report = MappingReport::load();
         $meta = MappingReport::meta();
 
-        echo '<div class="oy-yf-card oy-yf-unmapped"><h2>' . esc_html__('Values the last run could not map', 'otium-yachtfolio-sync') . '</h2>';
+        echo '<div class="oy-card oy-card--flag"><div class="oy-card__head"><h2 class="oy-card__title">' . esc_html__('Values the last run could not map', 'otium-yachtfolio-sync') . '</h2></div><div class="oy-card__body">';
 
         if ($report->is_empty()) {
-            echo '<p>' . esc_html__('Nothing outstanding.', 'otium-yachtfolio-sync') . '</p></div>';
+            echo '<p>' . esc_html__('Nothing outstanding.', 'otium-yachtfolio-sync') . '</p></div></div>';
             return;
         }
 
@@ -172,7 +179,7 @@ final class MappingScreen
             )) . '</p>';
         }
 
-        echo '<table class="widefat striped"><thead><tr>'
+        echo '<table class="oy-table"><thead><tr>'
             . '<th>' . esc_html__('Kind', 'otium-yachtfolio-sync') . '</th>'
             . '<th>' . esc_html__('Value', 'otium-yachtfolio-sync') . '</th>'
             . '<th>' . esc_html__('Seen', 'otium-yachtfolio-sync') . '</th>'
@@ -188,7 +195,7 @@ final class MappingScreen
                 );
             }
         }
-        echo '</tbody></table></div>';
+        echo '</tbody></table></div></div>';
     }
 
     /**
@@ -196,7 +203,7 @@ final class MappingScreen
      */
     private function pair_table(string $prefix, array $map, string $fromLabel, string $toLabel): void
     {
-        echo '<table class="widefat striped"><thead><tr>'
+        echo '<table class="oy-table"><thead><tr>'
             . '<th>' . esc_html($fromLabel) . '</th>'
             . '<th>' . esc_html($toLabel) . '</th>'
             . '</tr></thead><tbody>';

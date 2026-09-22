@@ -51,3 +51,8 @@ desktop.ini
 .php-cs-fixer.cache
 .phpunit.result.cache
 /.phpcs-cache/
+
+# MCP client config — contains a live WordPress application password.
+# Keep it local; never commit credentials to this repository.
+.mcp.json
+.mcp-probe/

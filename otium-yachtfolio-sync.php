@@ -2,11 +2,12 @@
 /**
  * Plugin Name:       Otium Yachtfolio Sync
  * Description:       One-way sync from the Yachtfolio Public API into the existing yacht post type. Never writes to Yachtfolio, never publishes on its own.
- * Version:           0.3.1
+ * Version:           0.5.0
  * Requires at least: 6.4
  * Requires PHP:      8.1
  * Author:            Otium Yachts
  * Text Domain:       otium-yachtfolio-sync
+ * Update URI:        https://github.com/marcliemedia/yachtfolio-plugin
  * Domain Path:       /languages
  */
 
@@ -18,7 +19,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-const VERSION = '0.3.1';
+const VERSION = '0.5.0';
 
 define('OY_YF_FILE', __FILE__);
 define('OY_YF_DIR', __DIR__);

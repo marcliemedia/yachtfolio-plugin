@@ -48,6 +48,7 @@ final class Menu
     {
         add_action('admin_menu', [$this, 'add_pages']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue']);
+        add_filter('admin_body_class', [$this, 'body_class']);
         add_action('admin_notices', [$this, 'print_flash']);
         add_action('admin_notices', [$this, 'print_attention_notice']);
 
@@ -207,6 +208,20 @@ final class Menu
                 'confirmRun' => __('Queue a sync pass now?', 'otium-yachtfolio-sync'),
             ],
         ]);
+    }
+
+    /**
+     * WordPress prints admin notices outside `.wrap`, so the design system
+     * cannot reach them from the page wrapper alone. This marker on <body>
+     * gives the stylesheet a scoped hook for them.
+     */
+    public function body_class(string $classes): string
+    {
+        $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+        $onOurPage = $screen !== null
+            && (in_array($screen->id, $this->hooks, true) || $this->is_yacht_editor());
+
+        return $onOurPage ? trim($classes . ' oy-yf-screen') : $classes;
     }
 
     private function is_yacht_editor(): bool
@@ -401,6 +416,45 @@ final class Menu
         );
     }
 
+    /**
+     * Opens a screen: wrapper, hero and the shared tab strip.
+     *
+     * Every screen went through `<div class="wrap"><h1>` on its own before,
+     * so the six pages shared no navigation at all and `tabs()` was dead code.
+     * Screens now call this and `close_page()` instead.
+     *
+     * @param string $actionsHtml already-escaped markup for the header right side
+     */
+    public static function open_page(
+        string $current,
+        string $title,
+        string $subtitle = '',
+        string $actionsHtml = ''
+    ): void {
+        echo '<div class="wrap oy-yf">';
+        echo '<div class="oy-hero"><div class="oy-hero__text">';
+        printf(
+            '<p class="oy-hero__eyebrow"><span class="oy-hero__mark" aria-hidden="true">OY</span>%s</p>',
+            esc_html__('Yachtfolio sync', 'otium-yachtfolio-sync')
+        );
+        printf('<h1 class="oy-hero__title">%s</h1>', esc_html($title));
+        if ($subtitle !== '') {
+            printf('<p class="oy-hero__sub">%s</p>', esc_html($subtitle));
+        }
+        echo '</div>';
+        if ($actionsHtml !== '') {
+            echo '<div class="oy-hero__actions">' . $actionsHtml . '</div>';
+        }
+        echo '</div>';
+
+        self::tabs($current);
+    }
+
+    public static function close_page(): void
+    {
+        echo '</div>';
+    }
+
     /** Screen tab strip, so every page shares one navigation. */
     public static function tabs(string $current): void
     {
@@ -413,12 +467,14 @@ final class Menu
             self::SLUG_SETTINGS  => __('Settings', 'otium-yachtfolio-sync'),
         ];
 
-        echo '<nav class="nav-tab-wrapper oy-tabs">';
+        echo '<nav class="oy-tabs" aria-label="' . esc_attr__('Yachtfolio sections', 'otium-yachtfolio-sync') . '">';
         foreach ($tabs as $slug => $label) {
+            $active = $slug === $current;
             printf(
-                '<a href="%s" class="nav-tab%s">%s</a>',
+                '<a href="%s" class="oy-tabs__link%s"%s>%s</a>',
                 esc_url(self::url($slug)),
-                $slug === $current ? ' nav-tab-active' : '',
+                $active ? ' is-active' : '',
+                $active ? ' aria-current="page"' : '',
                 esc_html($label)
             );
         }

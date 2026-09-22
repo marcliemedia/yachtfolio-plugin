@@ -46,12 +46,14 @@ final class YachtMetabox
         wp_nonce_field('oy_yf_metabox_' . $post->ID, 'oy_yf_metabox_nonce');
 
         if ($row === null) {
+            echo '<div class="oy-yf-metabox">';
             echo '<p>' . esc_html__('This yacht is not linked to a Yachtfolio row, so the sync never touches it.', 'otium-yachtfolio-sync') . '</p>';
             printf(
-                '<p><a class="button" href="%s">%s</a></p>',
+                '<p><a class="oy-btn" href="%s">%s</a></p>',
                 esc_url(Menu::url(Menu::SLUG_TOOLS)),
                 esc_html__('Link it in Tools', 'otium-yachtfolio-sync')
             );
+            echo '</div>';
             return;
         }
 
@@ -63,7 +65,8 @@ final class YachtMetabox
         $mode    = (string) $this->plugin->settings()->get('write_mode', 'fill_empty_only');
         $protect = $manual && $mode !== 'feed_authoritative';
 
-        echo '<table class="oy-yf-kv"><tbody>';
+        echo '<div class="oy-yf-metabox">';
+        echo '<table class="oy-kv"><tbody>';
         $this->kv(__('Feed ID', 'otium-yachtfolio-sync'), (string) $yfId . ($row['owned'] ? ' (' . __('owned', 'otium-yachtfolio-sync') . ')' : ''));
         $this->kv(
             __('This yacht was', 'otium-yachtfolio-sync'),
@@ -144,14 +147,15 @@ final class YachtMetabox
         );
 
         printf(
-            '<p><button type="button" class="button oy-yf-action" data-action="oy_yf_dry_run" data-yacht="%1$d">%2$s</button> '
-            . '<button type="button" class="button button-primary oy-yf-action" data-action="oy_yf_sync_one" data-yacht="%1$d">%3$s</button></p>',
+            '<div class="oy-actions"><button type="button" class="oy-btn oy-yf-action" data-action="oy_yf_dry_run" data-yacht="%1$d">%2$s</button>'
+            . '<button type="button" class="oy-btn oy-btn--primary oy-yf-action" data-action="oy_yf_sync_one" data-yacht="%1$d">%3$s</button></div>',
             $yfId,
             esc_html__('Dry run', 'otium-yachtfolio-sync'),
             esc_html__('Sync now', 'otium-yachtfolio-sync')
         );
 
         $this->legend();
+        echo '</div>';
     }
 
     public function save(int $postId, \WP_Post $post): void
@@ -188,7 +192,7 @@ final class YachtMetabox
     {
         $mapped = Ownership::api_owned_amenity_keys();
 
-        echo '<details class="oy-yf-legend"><summary>' . esc_html__('Which fields does the feed own?', 'otium-yachtfolio-sync') . '</summary>';
+        echo '<details class="oy-legend"><summary>' . esc_html__('Which fields does the feed own?', 'otium-yachtfolio-sync') . '</summary>';
         echo '<p class="description">' . esc_html__('On a hand-entered yacht the feed only fills fields that are empty — an existing value is never replaced, and terms are only added. On a yacht created from the feed, mapped fields are refreshed on every sync.', 'otium-yachtfolio-sync') . '</p>';
         // esc_html() was previously applied to the joined string, which escaped
         // the <code> separators and printed them as visible &lt;code&gt; text.

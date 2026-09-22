@@ -25,6 +25,7 @@ use Otium\Yachtfolio\Sync\Orchestrator;
 use Otium\Yachtfolio\Sync\RunStore;
 use Otium\Yachtfolio\Sync\YachtMapStore;
 use Otium\Yachtfolio\Write\Writer;
+use Otium\Yachtfolio\Update\GitHubUpdater;
 
 /**
  * Hand-rolled service container. Everything is lazy so a front-end request
@@ -71,7 +72,10 @@ final class Plugin
         // would implode 14 rows into one line, so those five get real tags.
         $this->dynamicTags()->register();
 
+        // Update checks run on admin requests only; the class itself caches its
+        // GitHub lookup, so this costs nothing outside the update cycle.
         if (is_admin()) {
+            $this->updater()->register();
             $this->menu()->register();
         }
     }
@@ -124,6 +128,11 @@ final class Plugin
     public function settings(): Settings
     {
         return $this->service(Settings::class, static fn(): Settings => new Settings());
+    }
+
+    public function updater(): GitHubUpdater
+    {
+        return $this->service(GitHubUpdater::class, fn(): GitHubUpdater => new GitHubUpdater($this));
     }
 
     public function logger(): Logger

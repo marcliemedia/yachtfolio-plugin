@@ -38,32 +38,36 @@ final class ToolsScreen
     {
         Menu::require_cap();
 
-        echo '<div class="wrap oy-yf"><h1>' . esc_html__('Tools', 'otium-yachtfolio-sync') . '</h1>';
+        Menu::open_page(
+            Menu::SLUG_TOOLS,
+            __('Tools', 'otium-yachtfolio-sync'),
+            __('One-off maintenance operations. None of them publish or delete yacht content.', 'otium-yachtfolio-sync')
+        );
 
         /* actions */
-        echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" class="oy-yf-actions">';
+        echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" class="oy-actions--panel">';
         wp_nonce_field('oy_yf_tools');
         echo '<input type="hidden" name="action" value="oy_yf_tool">';
-        echo '<p>';
+        echo '<div class="oy-actions">';
         $this->button('check', __('Check connection', 'otium-yachtfolio-sync'));
         $this->button('reference', __('Refresh reference cache', 'otium-yachtfolio-sync'));
         $this->button('recompute', __('Recompute hashes', 'otium-yachtfolio-sync'));
         $this->button('prune_media', __('Prune media ledger', 'otium-yachtfolio-sync'));
         $this->button('budget', __('Reset call budget', 'otium-yachtfolio-sync'));
         $this->button('export_mapping', __('Export mapping JSON', 'otium-yachtfolio-sync'));
-        echo '</p>';
-        echo '<p>';
+        echo '</div>';
+        echo '<div class="oy-actions" style="margin-top:var(--oy-3)">';
         printf(
             '<input type="number" name="yacht" class="small-text" placeholder="%s"> ',
             esc_attr__('feed id', 'otium-yachtfolio-sync')
         );
         $this->button('reimport_media', __('Re-import media for this yacht', 'otium-yachtfolio-sync'));
-        echo '</p>';
+        echo '</div>';
         echo '</form>';
 
         /* reference ages */
-        echo '<h2>' . esc_html__('Reference cache', 'otium-yachtfolio-sync') . '</h2>';
-        echo '<table class="widefat striped"><thead><tr><th>' . esc_html__('Table', 'otium-yachtfolio-sync')
+        echo '<h2 class="oy-section__title" style="margin:var(--oy-8) 0 var(--oy-3)">' . esc_html__('Reference cache', 'otium-yachtfolio-sync') . '</h2>';
+        echo '<table class="oy-table"><thead><tr><th>' . esc_html__('Table', 'otium-yachtfolio-sync')
             . '</th><th>' . esc_html__('Rows', 'otium-yachtfolio-sync')
             . '</th><th>' . esc_html__('Age', 'otium-yachtfolio-sync') . '</th></tr></thead><tbody>';
         $counts = $this->plugin->reference()->counts();
@@ -92,7 +96,7 @@ final class ToolsScreen
             echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '">';
             wp_nonce_field('oy_yf_tools');
             echo '<input type="hidden" name="action" value="oy_yf_tool">';
-            echo '<table class="widefat striped"><thead><tr>'
+            echo '<table class="oy-table"><thead><tr>'
                 . '<th>' . esc_html__('WordPress post', 'otium-yachtfolio-sync') . '</th>'
                 . '<th>' . esc_html__('Feed yacht', 'otium-yachtfolio-sync') . '</th>'
                 . '<th>' . esc_html__('Score', 'otium-yachtfolio-sync') . '</th>'
@@ -101,8 +105,8 @@ final class ToolsScreen
             foreach ($suggestions as $suggestion) {
                 printf(
                     '<tr><td><a href="%s">%s</a></td><td>%s <span class="description">(%d)</span></td>'
-                    . '<td>%d%% <span class="oy-yf-pill">%s</span></td>'
-                    . '<td><button type="submit" class="button button-small" name="oy_yf_do" value="link:%d:%d">%s</button></td></tr>',
+                    . '<td>%d%% <span class="oy-pill">%s</span></td>'
+                    . '<td><button type="submit" class="oy-btn oy-btn--sm" name="oy_yf_do" value="link:%d:%d">%s</button></td></tr>',
                     esc_url((string) get_edit_post_link((int) $suggestion['post_id'])),
                     esc_html((string) $suggestion['post_title']),
                     esc_html((string) $suggestion['yf_name']),
@@ -135,8 +139,8 @@ final class ToolsScreen
         }
 
         /* taxonomy report */
-        echo '<h2>' . esc_html__('Taxonomy migration report', 'otium-yachtfolio-sync') . '</h2>';
-        echo '<table class="widefat striped"><thead><tr>'
+        echo '<h2 class="oy-section__title" style="margin:var(--oy-8) 0 var(--oy-3)">' . esc_html__('Taxonomy migration report', 'otium-yachtfolio-sync') . '</h2>';
+        echo '<table class="oy-table"><thead><tr>'
             . '<th>' . esc_html__('Taxonomy', 'otium-yachtfolio-sync') . '</th>'
             . '<th>' . esc_html__('Term', 'otium-yachtfolio-sync') . '</th>'
             . '<th>' . esc_html__('Posts', 'otium-yachtfolio-sync') . '</th>'
@@ -167,8 +171,8 @@ final class ToolsScreen
         echo '</tbody></table>';
 
         /* legacy meta */
-        echo '<h2>' . esc_html__('Legacy meta (report only)', 'otium-yachtfolio-sync') . '</h2>';
-        echo '<table class="widefat striped"><thead><tr><th>' . esc_html__('Meta key', 'otium-yachtfolio-sync')
+        echo '<h2 class="oy-section__title" style="margin:var(--oy-8) 0 var(--oy-3)">' . esc_html__('Legacy meta (report only)', 'otium-yachtfolio-sync') . '</h2>';
+        echo '<table class="oy-table"><thead><tr><th>' . esc_html__('Meta key', 'otium-yachtfolio-sync')
             . '</th><th>' . esc_html__('Rows', 'otium-yachtfolio-sync') . '</th></tr></thead><tbody>';
         global $wpdb;
         foreach (self::LEGACY_KEYS as $key) {
@@ -181,7 +185,7 @@ final class ToolsScreen
         echo '</tbody></table>';
         echo '<p class="description">' . esc_html__('Nothing here is deleted automatically: this is editorial data from a previous migration.', 'otium-yachtfolio-sync') . '</p>';
 
-        echo '</div>';
+        Menu::close_page();
     }
 
     public function handle(): void
@@ -291,7 +295,7 @@ final class ToolsScreen
     private function button(string $value, string $label): void
     {
         printf(
-            '<button type="submit" class="button" name="oy_yf_do" value="%s">%s</button> ',
+            '<button type="submit" class="oy-btn" name="oy_yf_do" value="%s">%s</button>',
             esc_attr($value),
             esc_html($label)
         );

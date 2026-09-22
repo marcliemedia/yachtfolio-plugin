@@ -61,19 +61,19 @@
 		}
 
 		var overlay = document.createElement('div');
-		overlay.className = 'oy-yf-modal';
+		overlay.className = 'oy-modal';
 		overlay.id = 'oy-yf-modal';
 
 		var box = document.createElement('div');
-		box.className = 'oy-yf-modal-box';
+		box.className = 'oy-modal__box';
 
 		var head = document.createElement('div');
-		head.className = 'oy-yf-modal-head';
+		head.className = 'oy-modal__head';
 		var h2 = document.createElement('h2');
 		h2.textContent = title;
 		var close = document.createElement('button');
 		close.type = 'button';
-		close.className = 'button';
+		close.className = 'oy-btn oy-btn--ghost';
 		close.textContent = i18n.close || 'Close';
 		close.addEventListener('click', function () {
 			overlay.remove();
@@ -82,7 +82,7 @@
 		head.appendChild(close);
 
 		var body = document.createElement('div');
-		body.className = 'oy-yf-modal-body';
+		body.className = 'oy-modal__body';
 
 		box.appendChild(head);
 		box.appendChild(body);
@@ -112,7 +112,7 @@
 		}
 
 		var table = document.createElement('table');
-		table.className = 'oy-yf-diff';
+		table.className = 'oy-diff';
 
 		var thead = document.createElement('thead');
 		var headRow = document.createElement('tr');
@@ -128,16 +128,16 @@
 		rows.forEach(function (row) {
 			var tr = document.createElement('tr');
 			if (row.skipped) {
-				tr.className = 'oy-yf-skipped';
+				tr.className = 'oy-diff--skipped';
 			} else if (!row.changed) {
-				tr.className = 'oy-yf-unchanged';
+				tr.className = 'oy-diff--unchanged';
 			}
 
 			var cells = [
 				{ text: row.key, cls: '' },
 				{ text: row.owner, cls: '' },
-				{ text: row.old, cls: 'oy-yf-old' },
-				{ text: row.new, cls: 'oy-yf-new' },
+				{ text: row.old, cls: 'oy-diff__old' },
+				{ text: row.new, cls: 'oy-diff__new' },
 				{ text: row.reason || (row.skipped ? (i18n.skipped || 'skipped') : ''), cls: '' }
 			];
 
@@ -156,10 +156,10 @@
 
 		var toggle = document.createElement('button');
 		toggle.type = 'button';
-		toggle.className = 'button';
+		toggle.className = 'oy-btn oy-btn--sm';
 		toggle.textContent = 'Show unchanged (' + (rows.length - changed.length) + ')';
 		toggle.addEventListener('click', function () {
-			table.classList.toggle('oy-yf-show-all');
+			table.classList.toggle('is-showing-all');
 		});
 
 		body.appendChild(toggle);
@@ -177,7 +177,7 @@
 
 	function runAction(button, action, yachtId) {
 		var label = button.textContent;
-		button.classList.add('oy-yf-busy');
+		button.classList.add('oy-busy');
 		button.textContent = i18n.working || 'Working…';
 
 		post(action, { yacht: yachtId }).then(function (response) {
@@ -199,7 +199,7 @@
 		}).catch(function (error) {
 			notice(error.message || i18n.failed || 'Request failed.', 'error');
 		}).finally(function () {
-			button.classList.remove('oy-yf-busy');
+			button.classList.remove('oy-busy');
 			button.textContent = label;
 		});
 	}
@@ -254,7 +254,7 @@
 
 			var submit = form.querySelector('#doaction, #doaction2');
 			if (submit) {
-				submit.classList.add('oy-yf-busy');
+				submit.classList.add('oy-busy');
 			}
 
 			post('oy_yf_bulk', { operation: operation, yacht_ids: ids }).then(function (response) {
@@ -267,7 +267,7 @@
 				notice(error.message || i18n.failed || 'Request failed.', 'error');
 			}).finally(function () {
 				if (submit) {
-					submit.classList.remove('oy-yf-busy');
+					submit.classList.remove('oy-busy');
 				}
 			});
 		});

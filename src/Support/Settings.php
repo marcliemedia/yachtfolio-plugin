@@ -68,6 +68,11 @@ final class Settings
             'shoulder_source'      => 'next_season_min',
             'currency_locale'      => 'hr',
             'remove_data_on_uninstall' => false,
+            // GitHub release updates. The token is only needed while the
+            // repository is private; OY_YF_GITHUB_TOKEN in wp-config.php
+            // overrides this, exactly like the Yachtfolio passkey.
+            'github_token'         => '',
+            'update_prereleases'   => false,
         ];
     }
 
