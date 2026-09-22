@@ -72,10 +72,15 @@ final class Plugin
         // would implode 14 rows into one line, so those five get real tags.
         $this->dynamicTags()->register();
 
-        // Update checks run on admin requests only; the class itself caches its
-        // GitHub lookup, so this costs nothing outside the update cycle.
+        // The updater must NOT be behind is_admin(): WordPress refreshes the
+        // plugin update transient from WP-Cron, which runs without an admin
+        // context. Registered there, background checks never fired and an
+        // update only appeared if someone happened to load an admin screen.
+        // Registering is just add_filter() calls — the GitHub request happens
+        // inside the update cycle only, and is cached.
+        $this->updater()->register();
+
         if (is_admin()) {
-            $this->updater()->register();
             $this->menu()->register();
         }
     }
