@@ -232,7 +232,15 @@ final class Mapper
         $currentSeasonId = $currentSeason !== null ? (int) $currentSeason['id'] : 0;
         $areaIds = $p->areas_by_season[$currentSeasonId] ?? [];
         if ($areaIds === [] && $p->areas_by_season !== []) {
-            $areaIds = (array) reset($p->areas_by_season);
+            // Fall back to whichever season does have areas.
+            //
+            // reset() takes its argument BY REFERENCE and moves the array's
+            // internal pointer, which PHP 8.2 counts as modifying the property.
+            // On this readonly promoted property that is a fatal error, and it
+            // only fires for yachts whose areas sit under a season other than
+            // the current one — 11 of 433 on the live feed. array_values()
+            // reads without touching the original.
+            $areaIds = (array) (array_values($p->areas_by_season)[0] ?? []);
         }
 
         $areaNames = $this->areas->names(array_map('intval', $areaIds));
