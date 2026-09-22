@@ -436,13 +436,31 @@ final class Orchestrator
         return $result;
     }
 
-    /** @return array<string,mixed> */
+    /**
+     * Imports a yacht's media. Single-flight per yacht.
+     *
+     * Two paths reach this: the queued job created when a yacht is marked
+     * visible, and an explicit sync. Running both at once imported every image
+     * twice — the ledger's UNIQUE(id_file) cannot help, because both passes
+     * check for the file before either has inserted its row. Measured on a live
+     * test: ANNABEL II ended with 69 attachments for 35 ledger rows, 23.6 MB of
+     * duplicates across three yachts.
+     *
+     * @return array<string,mixed>
+     */
     public function sync_media(int $yfId, string $runId = ''): array
     {
         $map = $this->plugin->map();
         $row = $map->get($yfId);
         if ($row === null || empty($row['post_id'])) {
             return ['ok' => false, 'message' => "yacht $yfId has no linked post"];
+        }
+
+        $lock = $this->plugin->lock();
+        $lockName = 'media_' . $yfId;
+        if (!$lock->acquire($lockName, 900)) {
+            $this->plugin->logger()->info('media', 'another media pass is already running for this yacht; skipped', [], $yfId);
+            return ['ok' => true, 'imported' => 0, 'skipped' => 0, 'failed' => 0, 'message' => 'already running'];
         }
 
         $log = $this->plugin->logger();
@@ -494,9 +512,14 @@ final class Orchestrator
         } catch (ApiError $e) {
             $log->warn('media', 'media pass interrupted: ' . $e->getMessage(), ['kind' => $e->kind], $yfId);
             if ($e->retryable()) {
+                // Action Scheduler will retry, so the lock must not outlive
+                // this attempt.
+                $lock->release($lockName);
                 throw $e;
             }
             return ['ok' => false, 'message' => (string) Secrets::scrub($e->getMessage())];
+        } finally {
+            $lock->release($lockName);
         }
     }
 
