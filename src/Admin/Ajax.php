@@ -355,9 +355,7 @@ final class Ajax
                     break;
 
                 case 'sync':
-                case 'dry_run':
                     $result = $this->plugin->orchestrator()->sync_yacht($yfId, [
-                        'dry_run' => $operation === 'dry_run',
                         'trigger' => 'admin',
                     ]);
                     $done++;

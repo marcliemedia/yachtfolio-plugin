@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Yachtfolio Sync
  * Description:       One-way sync from the Yachtfolio Public API into the existing yacht post type. Never writes to Yachtfolio, never publishes on its own.
- * Version:           0.13.1
+ * Version:           0.14.0
  * Requires at least: 6.4
  * Requires PHP:      8.1
  * Author:            Marclie Agency
@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-const VERSION = '0.13.1';
+const VERSION = '0.14.0';
 
 define('OY_YF_FILE', __FILE__);
 define('OY_YF_DIR', __DIR__);

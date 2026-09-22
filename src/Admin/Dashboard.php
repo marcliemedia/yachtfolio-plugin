@@ -61,7 +61,6 @@ final class Dashboard
 
         $this->action_form([
             'sync'      => __('Sync now', 'otium-yachtfolio-sync'),
-            'dry_run'   => __('Dry run', 'otium-yachtfolio-sync'),
             'reference' => __('Refresh reference cache', 'otium-yachtfolio-sync'),
             'check'     => __('Check connection', 'otium-yachtfolio-sync'),
         ]);
@@ -131,11 +130,13 @@ final class Dashboard
         $action = isset($_POST['oy_yf_do']) ? sanitize_key((string) wp_unslash($_POST['oy_yf_do'])) : '';
 
         switch ($action) {
+            // Dry run is a per-yacht tool only. An index-wide one fetched every
+            // brochure from the feed — hundreds of API calls against a 600-per-5-
+            // minutes budget — and then threw the diff away to flash a queue
+            // count, so it cost the most and told the admin the least.
             case 'sync':
-            case 'dry_run':
                 $summary = $this->plugin->orchestrator()->run_index([
                     'trigger' => 'admin',
-                    'dry_run' => $action === 'dry_run',
                 ]);
                 if (empty($summary['ok'])) {
                     Menu::flash((string) ($summary['error'] ?? __('run failed', 'otium-yachtfolio-sync')), 'error');

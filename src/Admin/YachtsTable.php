@@ -65,13 +65,11 @@ final class YachtsTable extends \WP_List_Table
             '<form method="post" action="%s" class="oy-actions">%s'
             . '<input type="hidden" name="action" value="oy_yf_action">'
             . '<input type="hidden" name="oy_yf_return" value="%s">'
-            . '<button type="submit" class="oy-btn" name="oy_yf_do" value="dry_run">%s</button>'
             . '<button type="submit" class="oy-btn oy-btn--primary" name="oy_yf_do" value="sync">%s</button>'
             . '</form>',
             esc_url(admin_url('admin-post.php')),
             wp_nonce_field('oy_yf_dashboard', '_wpnonce', true, false),
             esc_attr(Menu::SLUG_YACHTS),
-            esc_html__('Dry run', 'otium-yachtfolio-sync'),
             esc_html__('Run sync pass', 'otium-yachtfolio-sync')
         );
     }
@@ -155,7 +153,9 @@ final class YachtsTable extends \WP_List_Table
             // difference between one step and two for a batch of yachts.
             'show_sync' => __('Set visible and sync now', 'otium-yachtfolio-sync'),
             'sync'      => __('Sync now', 'otium-yachtfolio-sync'),
-            'dry_run'   => __('Dry run', 'otium-yachtfolio-sync'),
+            // No bulk dry run: it fetched a brochure per yacht and reported only
+            // a count, discarding the diff that is the entire point. The preview
+            // lives on the row action, where the diff is actually shown.
             // Publishing in bulk still honours the Visible gate; anything not
             // visible is refused and reported rather than quietly published.
             'publish'   => __('Publish', 'otium-yachtfolio-sync'),
