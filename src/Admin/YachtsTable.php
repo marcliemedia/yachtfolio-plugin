@@ -38,8 +38,7 @@ final class YachtsTable extends \WP_List_Table
             Menu::SLUG_YACHTS,
             __('Yachts', 'otium-yachtfolio-sync'),
             __('Every yacht the feed offers. Nothing here publishes automatically.', 'otium-yachtfolio-sync'),
-            $this->hero_actions(),
-            true
+            $this->hero_actions()
         );
 
         $this->guide();

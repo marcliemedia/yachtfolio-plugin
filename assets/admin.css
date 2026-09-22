@@ -125,7 +125,7 @@ body.oy-yf-screen {
 .oy-yf {
 	margin: 0;
 	padding: var(--oy-6) var(--oy-6) 88px;
-	max-width: 1360px;
+	max-width: none;
 	font-family: var(--oy-font);
 	font-size: var(--oy-fs-md);
 	line-height: var(--oy-lh);
@@ -802,10 +802,18 @@ body.oy-yf-screen {
 	border-color: var(--oy-p-600);
 }
 
+/* WordPress draws the tick as a 21x21 SVG positioned at -1,-1, sized for its
+   own larger box. Shrinking the control to 17px without resizing the glyph
+   left the tick hanging outside the rounded square. */
 .oy-yf input[type="checkbox"]:checked::before {
-	margin: -1px 0 0 -1px;
+	width: 15px;
+	height: 15px;
+	margin: 0;
+	background-size: contain;
+	background-repeat: no-repeat;
 	color: var(--oy-n-0);
-	font-size: 16px;
+	font-size: 15px;
+	line-height: 15px;
 }
 
 .oy-yf input[type="radio"]:checked::before {
@@ -1073,12 +1081,20 @@ body.oy-yf-screen {
 
 /* ------------------------------------------------------------------ *
  * DATA SCREENS
- * The reading width that suits a settings form starves a nine-column
- * table: at 1360px the last column was clipped. Data screens opt out.
+ * Every screen uses the full content width so moving between tabs does
+ * not shift the layout. The settings form keeps a readable line length
+ * by capping its own fields rather than the page.
  * ------------------------------------------------------------------ */
 
-.oy-yf--wide {
-	max-width: none;
+.oy-yf .form-table td input.large-text,
+.oy-yf .form-table td textarea,
+.oy-yf .form-table td select {
+	max-width: 620px;
+}
+
+.oy-yf .form-table td.description,
+.oy-yf .form-table td .description {
+	max-width: 78ch;
 }
 
 /* truncation ------------------------------------------------------ */

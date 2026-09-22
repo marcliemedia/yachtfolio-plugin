@@ -9,6 +9,8 @@ use Otium\Yachtfolio\Support\Logger;
 
 final class LogsScreen
 {
+    private const PER_PAGE = 50;
+
     public function __construct(private Plugin $plugin)
     {
     }
@@ -24,7 +26,17 @@ final class LogsScreen
         Menu::require_cap();
 
         $filters = $this->filters();
-        $rows = $this->plugin->logger()->query($filters + ['limit' => 200]);
+
+        // 200 rows rendered a 13,600px page — unusable as a reading surface and
+        // pointless as a scroll. Paged at 50, with the total shown so the
+        // filters above can be judged against it.
+        $total   = $this->plugin->logger()->count($filters);
+        $pages   = max(1, (int) ceil($total / self::PER_PAGE));
+        $paged   = min($pages, max(1, (int) ($_GET['paged'] ?? 1)));
+        $rows    = $this->plugin->logger()->query($filters + [
+            'limit'  => self::PER_PAGE,
+            'offset' => ($paged - 1) * self::PER_PAGE,
+        ]);
 
         Menu::open_page(
             Menu::SLUG_LOGS,
@@ -119,7 +131,67 @@ final class LogsScreen
         }
 
         echo '</tbody></table>';
+
+        $this->pagination($paged, $pages, $total, $filters);
+
         Menu::close_page();
+    }
+
+    /**
+     * @param array<string,mixed> $filters carried through so paging keeps the
+     *                                     filter the admin is looking at
+     */
+    private function pagination(int $paged, int $pages, int $total, array $filters): void
+    {
+        $base = ['page' => Menu::SLUG_LOGS];
+        foreach (['run_id' => 'run', 'level' => 'level', 'stage' => 'stage', 'search' => 'search'] as $key => $param) {
+            if (!empty($filters[$key])) {
+                $base[$param] = (string) $filters[$key];
+            }
+        }
+        if (!empty($filters['yf_id'])) {
+            $base['yacht'] = (int) $filters['yf_id'];
+        }
+
+        echo '<div class="tablenav bottom"><div class="tablenav-pages">';
+        printf(
+            '<span class="displaying-num">%s</span>',
+            esc_html(sprintf(
+                /* translators: %s: number of log rows */
+                _n('%s entry', '%s entries', $total, 'otium-yachtfolio-sync'),
+                number_format_i18n($total)
+            ))
+        );
+
+        if ($pages > 1) {
+            $link = static function (int $p, string $label, bool $disabled) use ($base): void {
+                if ($disabled) {
+                    printf('<span class="tablenav-pages-navspan" aria-hidden="true">%s</span>', esc_html($label));
+                    return;
+                }
+                printf(
+                    '<a class="page-numbers" href="%s">%s</a>',
+                    esc_url(add_query_arg($base + ['paged' => $p], admin_url('admin.php'))),
+                    esc_html($label)
+                );
+            };
+
+            $link(1, '«', $paged <= 1);
+            $link($paged - 1, '‹', $paged <= 1);
+            printf(
+                '<span class="paging-input">%s</span>',
+                esc_html(sprintf(
+                    /* translators: 1: current page, 2: total pages */
+                    __('%1$d of %2$d', 'otium-yachtfolio-sync'),
+                    $paged,
+                    $pages
+                ))
+            );
+            $link($paged + 1, '›', $paged >= $pages);
+            $link($pages, '»', $paged >= $pages);
+        }
+
+        echo '</div></div>';
     }
 
     public function export(): void

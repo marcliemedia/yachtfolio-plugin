@@ -27,6 +27,7 @@ final class Jobs
     public const HOOK_WAVE     = 'oy_yf_wave';
     public const HOOK_FINALIZE = 'oy_yf_finalize';
     public const HOOK_CRON     = 'oy_yf_scheduled_run';
+    public const HOOK_PURGE    = 'oy_yf_purge_logs';
 
     public function __construct(private Plugin $plugin)
     {
@@ -40,6 +41,7 @@ final class Jobs
         add_action(self::HOOK_WAVE, [$this, 'handle_wave'], 10, 3);
         add_action(self::HOOK_FINALIZE, [$this, 'handle_finalize'], 10, 1);
         add_action(self::HOOK_CRON, [$this, 'handle_cron'], 10, 0);
+        add_action(self::HOOK_PURGE, [$this, 'handle_purge'], 10, 0);
 
         /**
          * Media follows curation.
@@ -58,6 +60,7 @@ final class Jobs
         add_action('added_post_meta', [$this, 'on_visibility_meta'], 10, 4);
         add_action('updated_post_meta', [$this, 'on_visibility_meta'], 10, 4);
         add_action('init', [$this, 'sync_schedule'], 30);
+        add_action('init', [$this, 'sync_purge_schedule'], 31);
     }
 
     /**
@@ -172,6 +175,43 @@ final class Jobs
     public function handle_cron(): void
     {
         $this->plugin->orchestrator()->run_index(['trigger' => 'cron']);
+    }
+
+    /**
+     * Trims the log table on a daily schedule.
+     *
+     * Retention existed as a setting and as a button in Tools, but nothing ever
+     * applied it on its own: the table only shrank if somebody remembered to
+     * press Purge. Every sync writes rows, so left alone it grows without
+     * bound — on a shared host that is a slow leak in the one place backups
+     * cannot ignore.
+     */
+    public function handle_purge(): void
+    {
+        $days = $this->plugin->settings()->int('log_retention_days', 14);
+        if ($days <= 0) {
+            return; // retention disabled on purpose
+        }
+
+        $deleted = $this->plugin->logger()->purge($days);
+        if ($deleted > 0) {
+            $this->plugin->logger()->info('run', 'log retention applied', [
+                'deleted' => $deleted,
+                'days'    => $days,
+            ]);
+        }
+    }
+
+    /** Daily, independent of the sync schedule: logs grow even when sync is off. */
+    public function sync_purge_schedule(): void
+    {
+        if (!function_exists('as_has_scheduled_action') || !function_exists('as_schedule_recurring_action')) {
+            return;
+        }
+        if (as_has_scheduled_action(self::HOOK_PURGE, [], self::GROUP)) {
+            return;
+        }
+        as_schedule_recurring_action(time() + DAY_IN_SECONDS, DAY_IN_SECONDS, self::HOOK_PURGE, [], self::GROUP);
     }
 
     /* ---------------- enqueueing ---------------- */

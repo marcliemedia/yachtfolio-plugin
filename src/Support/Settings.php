@@ -72,7 +72,7 @@ final class Settings
             // every yacht keeps the original template. See Frontend\TemplateRouter.
             'single_template_id'   => 0,
             'reference_ttl'        => 86400,
-            'log_retention_days'   => 30,
+            'log_retention_days'   => 14,   // purged daily by Sync\Jobs::handle_purge()
             'brochure_scenario'    => 'auto',   // auto|manual|text (API treats them alike)
             'detail_scope'         => 'selected', // selected|all — selected = linked/selected/visible only
             'shoulder_source'      => 'next_season_min',

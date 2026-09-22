@@ -444,18 +444,20 @@ final class Menu
      * so the six pages shared no navigation at all and `tabs()` was dead code.
      * Screens now call this and `close_page()` instead.
      *
+     * Width is not a per-screen decision. Two screens opted into full width and
+     * the other five sat 12px narrower, which reads as a rendering fault when
+     * you move between tabs. They all use the content width now; the settings
+     * form keeps its readable line length by capping its own fields instead.
+     *
      * @param string $actionsHtml already-escaped markup for the header right side
      */
     public static function open_page(
         string $current,
         string $title,
         string $subtitle = '',
-        string $actionsHtml = '',
-        bool $wide = false
+        string $actionsHtml = ''
     ): void {
-        // Data screens opt out of the reading-width cap: a nine-column table
-        // does not fit in the width that suits a settings form.
-        printf('<div class="wrap oy-yf%s">', $wide ? ' oy-yf--wide' : '');
+        echo '<div class="wrap oy-yf">';
         echo '<div class="oy-hero"><div class="oy-hero__text">';
         printf(
             '<p class="oy-hero__eyebrow"><span class="oy-hero__mark" aria-hidden="true">OY</span>%s</p>',

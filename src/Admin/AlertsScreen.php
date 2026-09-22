@@ -44,9 +44,7 @@ final class AlertsScreen
         Menu::open_page(
             Menu::SLUG_ALERTS,
             __('Alerts', 'otium-yachtfolio-sync'),
-            __('Conditions that need a decision. Nothing here is ever resolved automatically, and nothing here has unpublished or deleted anything.', 'otium-yachtfolio-sync'),
-            '',
-            true
+            __('Conditions that need a decision. Nothing here is ever resolved automatically, and nothing here has unpublished or deleted anything.', 'otium-yachtfolio-sync')
         );
 
         echo '<div class="oy-grid">';
@@ -140,13 +138,31 @@ final class AlertsScreen
     }
     /* ------------------------------------------------------------------ */
 
+    private const SHOWN = 25;
+
     private function attention_section(): void
     {
-        $rows = $this->plugin->map()->all(['attention' => true, 'limit' => 100]);
+        // 114 yachts carry a content flag, which rendered an 8,500px page.
+        // This is a summary screen: show the head of the list and hand the rest
+        // to the Yachts table, which is paginated and filterable.
+        $total = $this->plugin->map()->count(['attention' => true]);
+        $rows  = $this->plugin->map()->all(['attention' => true, 'limit' => self::SHOWN]);
 
         echo '<section class="oy-section">';
         echo '<div class="oy-section__head"><h2 class="oy-section__title">'
-            . esc_html__('Yachts needing attention', 'otium-yachtfolio-sync') . '</h2></div>';
+            . esc_html__('Yachts needing attention', 'otium-yachtfolio-sync') . '</h2>';
+        if ($total > self::SHOWN) {
+            printf(
+                '<a class="oy-btn oy-btn--sm" href="%s">%s</a>',
+                esc_url(Menu::url(Menu::SLUG_YACHTS, ['view' => 'attention'])),
+                esc_html(sprintf(
+                    /* translators: %d: total number of yachts */
+                    __('See all %d', 'otium-yachtfolio-sync'),
+                    $total
+                ))
+            );
+        }
+        echo '</div>';
 
         if ($rows === []) {
             echo '<div class="oy-empty"><p><strong>' . esc_html__('Nothing needs attention.', 'otium-yachtfolio-sync')

@@ -111,7 +111,7 @@ final class GitHubUpdater
             'name'          => 'Otium Yachtfolio Sync',
             'slug'          => self::DIR,
             'version'       => $release['version'],
-            'author'        => 'Otium Yachts',
+            'author'        => '<a href="https://marclie.com/">Marclie Agency</a>',
             'homepage'      => $release['url'],
             'requires'      => '6.4',
             'requires_php'  => '8.1',

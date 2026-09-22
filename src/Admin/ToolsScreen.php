@@ -147,18 +147,29 @@ final class ToolsScreen
             . '<th>' . esc_html__('Shape', 'otium-yachtfolio-sync') . '</th>'
             . '</tr></thead><tbody>';
 
+        // A migration report should list what needs migrating. Printing every
+        // term put 107 rows on the page, of which a handful mattered; the rest
+        // were healthy terms that only made the problems harder to find.
+        $flagged = 0;
+        $checked = 0;
+
         foreach (['yacht-cabins', 'yacht-guests', 'yacht-type', 'yacht-destination'] as $taxonomy) {
-            $terms = get_terms(['taxonomy' => $taxonomy, 'hide_empty' => false, 'number' => 60]);
+            $terms = get_terms(['taxonomy' => $taxonomy, 'hide_empty' => false, 'number' => 200]);
             if (is_wp_error($terms)) {
                 continue;
             }
             foreach ($terms as $term) {
+                $checked++;
                 $shape = '';
                 if ($taxonomy === 'yacht-guests' && preg_match('/^\d+\s*-\s*\d+/', $term->name) === 1) {
                     $shape = __('legacy range — Bricks queries must move to the numeric field', 'otium-yachtfolio-sync');
                 } elseif ($taxonomy === 'yacht-cabins' && preg_match('/^\d+$/', $term->name) === 1) {
                     $shape = __('malformed, safe to delete', 'otium-yachtfolio-sync');
                 }
+                if ($shape === '') {
+                    continue;
+                }
+                $flagged++;
                 printf(
                     '<tr><td>%s</td><td>%s</td><td>%d</td><td>%s</td></tr>',
                     esc_html($taxonomy),
@@ -168,7 +179,27 @@ final class ToolsScreen
                 );
             }
         }
+
+        if ($flagged === 0) {
+            printf(
+                '<tr><td colspan="4">%s</td></tr>',
+                esc_html(sprintf(
+                    /* translators: %d: number of terms checked */
+                    __('All %d terms are well formed.', 'otium-yachtfolio-sync'),
+                    $checked
+                ))
+            );
+        }
         echo '</tbody></table>';
+        printf(
+            '<p class="oy-legend">%s</p>',
+            esc_html(sprintf(
+                /* translators: 1: flagged terms, 2: terms checked */
+                __('%1$d of %2$d terms need attention. Well-formed terms are not listed.', 'otium-yachtfolio-sync'),
+                $flagged,
+                $checked
+            ))
+        );
 
         /* legacy meta */
         echo '<h2 class="oy-section__title" style="margin:var(--oy-8) 0 var(--oy-3)">' . esc_html__('Legacy meta (report only)', 'otium-yachtfolio-sync') . '</h2>';
