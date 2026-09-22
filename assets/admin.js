@@ -175,6 +175,22 @@
 
 	/* ---------------- row actions ---------------- */
 
+	/**
+	 * Moves a switch to its other state: the graphic, the accessible state and
+	 * the wording all change together, so the control never shows "Skipped"
+	 * next to a track that has already slid to on.
+	 */
+	function flipSwitch(button) {
+		var on = button.getAttribute('aria-checked') !== 'true';
+		button.setAttribute('aria-checked', on ? 'true' : 'false');
+
+		var label = button.querySelector('.oy-switch__label');
+		var next = on ? button.getAttribute('data-label-on') : button.getAttribute('data-label-off');
+		if (label && next) {
+			label.textContent = next;
+		}
+	}
+
 	function runAction(button, action, yachtId) {
 		// A switch is built from child elements. Overwriting textContent would
 		// delete the track and thumb and never put them back, so only plain
@@ -189,7 +205,7 @@
 			button.textContent = i18n.working || 'Working…';
 		}
 		if (isSwitch) {
-			button.setAttribute('aria-checked', button.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+			flipSwitch(button);
 		}
 
 		post(action, { yacht: yachtId }).then(function (response) {
@@ -212,7 +228,7 @@
 			notice(error.message || i18n.failed || 'Request failed.', 'error');
 			// The optimistic flip was wrong: put it back.
 			if (isSwitch) {
-				button.setAttribute('aria-checked', button.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+				flipSwitch(button);
 			}
 		}).finally(function () {
 			button.classList.remove('oy-busy');

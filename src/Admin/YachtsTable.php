@@ -395,13 +395,18 @@ final class YachtsTable extends \WP_List_Table
     ): string {
         return sprintf(
             '<button type="button" role="switch" aria-checked="%s" class="oy-switch oy-yf-toggle"'
-            . ' data-action="%s" data-yacht="%d" title="%s">'
+            . ' data-action="%s" data-yacht="%d" title="%s"'
+            // Both labels travel with the control so the script can keep the
+            // wording in step with the graphic while the request is in flight.
+            . ' data-label-on="%s" data-label-off="%s">'
             . '<span class="oy-switch__track" aria-hidden="true"><span class="oy-switch__thumb"></span></span>'
             . '<span class="oy-switch__label">%s</span></button>',
             $on ? 'true' : 'false',
             esc_attr($action),
             $yfId,
             esc_attr($on ? $onHint : $offHint),
+            esc_attr($onLabel),
+            esc_attr($offLabel),
             esc_html($on ? $onLabel : $offLabel)
         );
     }
