@@ -149,7 +149,9 @@ final class GitHubUpdater
             return $reply;
         }
 
-        if (is_object($upgrader) && method_exists($upgrader, 'skin') === false && isset($upgrader->skin)) {
+        // `skin` is a property, not a method; the guard only has to prove the
+        // upgrader actually carries one before reporting progress through it.
+        if (is_object($upgrader) && isset($upgrader->skin) && is_object($upgrader->skin)) {
             $upgrader->skin->feedback(__('Downloading the release from GitHub…', 'otium-yachtfolio-sync'));
         }
 
