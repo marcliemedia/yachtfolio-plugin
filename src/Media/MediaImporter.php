@@ -206,6 +206,7 @@ final class MediaImporter
         $attachmentId = (int) $attachmentId;
         $metadata = wp_generate_attachment_metadata($attachmentId, $upload['file']);
         if (is_array($metadata)) {
+            $metadata = $this->drop_oversized_original($metadata, $upload['file'], $yfId);
             wp_update_attachment_metadata($attachmentId, $metadata);
         }
 
@@ -222,6 +223,56 @@ final class MediaImporter
         $this->ledger->record($idFile, $attachmentId, $yfId, $gallery, $filename, $realExt, strlen($bytes));
 
         return $attachmentId;
+    }
+
+    /**
+     * Removes the untouched original WordPress keeps beside the `-scaled` copy.
+     *
+     * When a source image is wider than `big_image_size_threshold` (2560px),
+     * WordPress serves a scaled copy and keeps the original on disk for ever,
+     * in case someone wants to regenerate from it.
+     *
+     * For feed images that second copy buys nothing and costs a great deal.
+     * Measured over three yachts (82 images): the retained originals were
+     * 54.09 MB of 101.81 MB — **53% of all bytes for files that are never
+     * served**. Yachtfolio sends 4192–8192px images (median 6412); everything
+     * on the site renders from the 2560px scaled copy or smaller.
+     *
+     * Safe because the original is not the only copy: it can be re-fetched from
+     * Yachtfolio at any time. Only files this importer created are touched —
+     * images uploaded by an editor keep their originals.
+     *
+     * @param array<string,mixed> $metadata
+     * @return array<string,mixed>
+     */
+    private function drop_oversized_original(array $metadata, string $scaledPath, int $yfId): array
+    {
+        if (!$this->settings->bool('drop_oversized_originals')) {
+            return $metadata;
+        }
+
+        $original = (string) ($metadata['original_image'] ?? '');
+        if ($original === '') {
+            return $metadata;
+        }
+
+        $path = trailingslashit(dirname($scaledPath)) . $original;
+
+        // Never delete the file actually being served.
+        if ($path === $scaledPath || !is_file($path)) {
+            return $metadata;
+        }
+
+        $freed = (int) filesize($path);
+        if (@unlink($path)) {
+            unset($metadata['original_image']);
+            $this->log->info('media', 'dropped the unserved full-size original', [
+                'file'  => basename($path),
+                'freed' => $freed,
+            ], $yfId);
+        }
+
+        return $metadata;
     }
 
     /**

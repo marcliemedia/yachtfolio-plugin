@@ -55,6 +55,11 @@ final class Settings
             // Turn it on only after checking the theme does not select those
             // sizes. See Media\ImageSizes for the measurements.
             'trim_image_sizes'     => false,
+            // The full-size original WordPress keeps beside the 2560px scaled
+            // copy. Measured over three yachts: 53% of all imported bytes, for
+            // files nothing ever renders. Safe to drop because the feed can
+            // supply them again. See Media\MediaImporter::drop_oversized_original().
+            'drop_oversized_originals' => false,
             'import_sample_menu'   => false,
             'import_crew_photos'   => true,
             'set_featured_image'   => true,     // only when the post has none

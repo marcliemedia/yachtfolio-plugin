@@ -171,6 +171,12 @@ final class SettingsScreen
             __('Skip the 1536px and 2048px sizes', 'otium-yachtfolio-sync'),
             __('WordPress adds these two automatically. They appear only inside srcset, never as a plain src, and "large" sits between them. Measured saving on a full import: 2.30 GB and 20,639 files. Existing images keep the sizes they already have.', 'otium-yachtfolio-sync')
         );
+        $this->checkbox_row(
+            $s,
+            'drop_oversized_originals',
+            __('Discard the full-size original', 'otium-yachtfolio-sync'),
+            __('Yachtfolio sends images up to 8192px wide. WordPress serves a 2560px copy and keeps the original for ever. Measured over three yachts, those originals were 53% of all imported bytes and nothing on the site renders from them; the feed can supply them again. Only images imported here are affected.', 'otium-yachtfolio-sync')
+        );
         $this->checkbox_row($s, 'import_sample_menu', __('Import the sample menu PDF', 'otium-yachtfolio-sync'));
         $this->checkbox_row($s, 'import_crew_photos', __('Import crew photos', 'otium-yachtfolio-sync'));
         $this->checkbox_row($s, 'set_featured_image', __('Set the featured image when the post has none', 'otium-yachtfolio-sync'));
@@ -354,7 +360,7 @@ final class SettingsScreen
             }
         }
 
-        foreach (['import_brochure', 'import_media', 'create_terms', 'import_sample_menu', 'import_crew_photos', 'set_featured_image', 'remove_data_on_uninstall', 'update_prereleases', 'trim_image_sizes'] as $key) {
+        foreach (['import_brochure', 'import_media', 'create_terms', 'import_sample_menu', 'import_crew_photos', 'set_featured_image', 'remove_data_on_uninstall', 'update_prereleases', 'trim_image_sizes', 'drop_oversized_originals'] as $key) {
             $patch[$key] = !empty($post[$key]);
         }
 
