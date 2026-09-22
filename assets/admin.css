@@ -1109,6 +1109,33 @@ body.oy-yf-screen {
 .oy-yf .wp-list-table td.column-modified,
 .oy-yf .wp-list-table td.column-synced { font-variant-numeric: tabular-nums; }
 
+/* `.oy-cell__meta` sets display:block and is declared later at the same
+   specificity, which silently defeated the clamp. */
+.oy-cell__meta.oy-clamp,
+.oy-trunc.oy-clamp {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	-webkit-box-orient: vertical;
+	white-space: normal;
+}
+
+/* Row actions must wrap: the cell clips, so a single long line lost its tail. */
+.oy-yf .wp-list-table .row-actions {
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+
+/* A flag longer than its column would otherwise be sliced mid-word. */
+.oy-yf .wp-list-table .column-attention .oy-pill {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	display: inline-block;
+}
+
+.oy-yf .tablenav-pages { flex-wrap: nowrap; }
+
 /* cell internals -------------------------------------------------- */
 
 .oy-cell__title {

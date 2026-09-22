@@ -340,7 +340,14 @@ final class Menu
         );
     }
 
-    /** @param string $csv comma separated attention flags */
+    /**
+     * @param string $csv comma separated attention flags
+     *
+     * The stored flags are sentences ("detail record unavailable"), which is
+     * right for a log and far too wide for a table column. The pill carries a
+     * short label and the full wording in `title`; the Alerts screen spells out
+     * what each one means.
+     */
     public static function flag_pills(string $csv): string
     {
         $flags = array_filter(array_map('trim', explode(',', $csv)));
@@ -348,12 +355,18 @@ final class Menu
             return '<span class="oy-muted">—</span>';
         }
 
+        $short = [
+            YachtMapStore::ATTENTION_DETAIL_LOST => __('no detail', 'otium-yachtfolio-sync'),
+            YachtMapStore::ATTENTION_AUTH_LOST   => __('no access', 'otium-yachtfolio-sync'),
+        ];
+
         $out = '';
         foreach ($flags as $flag) {
+            $label = $short[$flag] ?? str_replace('_', ' ', $flag);
             $out .= sprintf(
                 '<span class="oy-pill oy-pill--flag" title="%s">%s</span> ',
                 esc_attr($flag),
-                esc_html(str_replace('_', ' ', $flag))
+                esc_html($label)
             );
         }
 
