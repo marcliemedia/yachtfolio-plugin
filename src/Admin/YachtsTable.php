@@ -36,9 +36,12 @@ final class YachtsTable extends \WP_List_Table
         Menu::open_page(
             Menu::SLUG_YACHTS,
             __('Yachts', 'otium-yachtfolio-sync'),
-            __('Visible controls whether a yacht may be published and whether its media is imported. Nothing here publishes automatically.', 'otium-yachtfolio-sync')
+            __('Every yacht the feed offers. Nothing here publishes automatically.', 'otium-yachtfolio-sync'),
+            $this->hero_actions(),
+            true
         );
 
+        $this->guide();
         $this->views();
 
         echo '<form method="get" id="oy-yf-yachts-form">';
@@ -52,12 +55,59 @@ final class YachtsTable extends \WP_List_Table
         Menu::close_page();
     }
 
+    /**
+     * The one action worth promoting from this screen. Everything else is
+     * per-row or bulk, and belongs next to the rows it affects.
+     */
+    private function hero_actions(): string
+    {
+        return sprintf(
+            '<form method="post" action="%s" class="oy-actions">%s'
+            . '<input type="hidden" name="action" value="oy_yf_action">'
+            . '<input type="hidden" name="oy_yf_return" value="%s">'
+            . '<button type="submit" class="oy-btn" name="oy_yf_do" value="dry_run">%s</button>'
+            . '<button type="submit" class="oy-btn oy-btn--primary" name="oy_yf_do" value="sync">%s</button>'
+            . '</form>',
+            esc_url(admin_url('admin-post.php')),
+            wp_nonce_field('oy_yf_dashboard', '_wpnonce', true, false),
+            esc_attr(Menu::SLUG_YACHTS),
+            esc_html__('Dry run', 'otium-yachtfolio-sync'),
+            esc_html__('Run sync pass', 'otium-yachtfolio-sync')
+        );
+    }
+
+    /**
+     * Three states decide whether a yacht is imported and published, and their
+     * order is not guessable from the column headings alone.
+     */
+    private function guide(): void
+    {
+        $steps = [
+            __('Select it for sync', 'otium-yachtfolio-sync'),
+            __('Set it Visible to allow media and publishing', 'otium-yachtfolio-sync'),
+            __('Run a sync pass, then publish when it looks right', 'otium-yachtfolio-sync'),
+        ];
+
+        echo '<div class="oy-guide">';
+        $i = 0;
+        foreach ($steps as $step) {
+            if ($i > 0) {
+                echo '<span class="oy-guide__arrow" aria-hidden="true">→</span>';
+            }
+            printf(
+                '<span class="oy-guide__step"><span class="oy-guide__n">%d</span>%s</span>',
+                ++$i,
+                esc_html($step)
+            );
+        }
+        echo '</div>';
+    }
+
     /** @return array<string,string> */
     public function get_columns(): array
     {
         return [
             'cb'         => '<input type="checkbox">',
-            'yf_id'      => __('Feed ID', 'otium-yachtfolio-sync'),
             'yacht_name' => __('Yacht', 'otium-yachtfolio-sync'),
             'post'       => __('WordPress post', 'otium-yachtfolio-sync'),
             'visible'    => __('Visible', 'otium-yachtfolio-sync'),
@@ -73,7 +123,6 @@ final class YachtsTable extends \WP_List_Table
     protected function get_sortable_columns(): array
     {
         return [
-            'yf_id'      => ['yf_id', false],
             'yacht_name' => ['yacht_name', true],
             'status'     => ['status', false],
             'modified'   => ['last_modified_remote', false],
@@ -181,19 +230,16 @@ final class YachtsTable extends \WP_List_Table
     }
 
     /** @param array<string,mixed> $item */
-    protected function column_yf_id($item): string
-    {
-        $badge = $item['owned'] ? ' <span class="oy-pill oy-pill--owned">' . esc_html__('owned', 'otium-yachtfolio-sync') . '</span>' : '';
-        return '<strong>' . (int) $item['yf_id'] . '</strong>' . $badge;
-    }
-
-    /** @param array<string,mixed> $item */
     protected function column_yacht_name($item): string
     {
         $yfId = (int) $item['yf_id'];
         $view = $this->view_link($item);
+        $raw  = (string) $item['yacht_name'];
 
-        $label = '<strong>' . esc_html((string) $item['yacht_name']) . '</strong>';
+        // Truncation is CSS, not a substring: the full name stays in the DOM and
+        // in `title`, so search, copy and screen readers still see all of it.
+        $label = sprintf('<span class="oy-cell__title oy-trunc" title="%s">%s</span>', esc_attr($raw), esc_html($raw));
+
         if ($view !== null) {
             // New tab on purpose: this table carries filter and paging state
             // that an admin checking one yacht after another should not lose.
@@ -204,9 +250,21 @@ final class YachtsTable extends \WP_List_Table
             );
         }
 
-        $name = $label;
+        // Feed ID used to own a whole 144px column for a five-digit number.
+        // It belongs next to the name it identifies.
+        $meta = '#' . $yfId;
         if ((string) $item['registry_port'] !== '') {
-            $name .= '<br><span class="description">' . esc_html((string) $item['registry_port']) . '</span>';
+            $meta .= ' · ' . (string) $item['registry_port'];
+        }
+
+        $name = $label . sprintf(
+            '<span class="oy-cell__meta oy-trunc" title="%s">%s</span>',
+            esc_attr($meta),
+            esc_html($meta)
+        );
+
+        if (!empty($item['owned'])) {
+            $name .= ' <span class="oy-pill oy-pill--owned">' . esc_html__('owned', 'otium-yachtfolio-sync') . '</span>';
         }
 
         $actions = [];
@@ -250,15 +308,17 @@ final class YachtsTable extends \WP_List_Table
     {
         $postId = (int) ($item['post_id'] ?? 0);
         if ($postId <= 0) {
-            return '<span class="description">' . esc_html__('not linked', 'otium-yachtfolio-sync') . '</span>';
+            return '<span class="oy-muted">' . esc_html__('not linked', 'otium-yachtfolio-sync') . '</span>';
         }
         $post = get_post($postId);
         if (!$post) {
-            return '<span class="description">' . esc_html__('missing post', 'otium-yachtfolio-sync') . '</span>';
+            return '<span class="oy-pill oy-pill--danger">' . esc_html__('missing post', 'otium-yachtfolio-sync') . '</span>';
         }
         return sprintf(
-            '<a href="%s">%s</a><br><span class="oy-pill oy-pill--%s">%s</span>',
+            '<span class="oy-cell__stack"><a href="%s" class="oy-trunc" title="%s">%s</a>'
+            . '<span class="oy-pill oy-pill--%s">%s</span></span>',
             esc_url((string) get_edit_post_link($postId)),
+            esc_attr($post->post_title),
             esc_html($post->post_title),
             esc_attr($post->post_status),
             esc_html($post->post_status)
@@ -270,42 +330,98 @@ final class YachtsTable extends \WP_List_Table
     {
         $postId = (int) ($item['post_id'] ?? 0);
         if ($postId <= 0) {
-            return '—';
+            return '<span class="oy-muted">—</span>';
         }
         $on = (string) get_post_meta($postId, 'yf_visible', true) === 'true';
+
+        // The button carries the current state; the title says what clicking does,
+        // because a lone "Visible" label reads as a claim, not a control.
         return sprintf(
-            '<button type="button" class="oy-btn oy-btn--sm oy-yf-toggle" data-action="oy_yf_toggle_visible" data-yacht="%d">%s</button>',
+            '<button type="button" class="oy-btn oy-btn--sm oy-yf-toggle" data-action="oy_yf_toggle_visible" data-yacht="%d" title="%s">%s</button>',
             (int) $item['yf_id'],
-            $on ? esc_html__('Visible', 'otium-yachtfolio-sync') : esc_html__('Hidden', 'otium-yachtfolio-sync')
+            $on
+                ? esc_attr__('Click to hide this yacht', 'otium-yachtfolio-sync')
+                : esc_attr__('Click to make this yacht visible', 'otium-yachtfolio-sync'),
+            $on
+                ? esc_html__('Visible', 'otium-yachtfolio-sync')
+                : esc_html__('Hidden', 'otium-yachtfolio-sync')
         );
     }
 
     /** @param array<string,mixed> $item */
     protected function column_status($item): string
     {
-        $html = Menu::status_pill((string) $item['status']);
-        if ((string) ($item['last_error'] ?? '') !== '') {
-            $html .= '<br><span class="description">' . esc_html(mb_substr((string) $item['last_error'], 0, 120)) . '</span>';
+        $html  = Menu::status_pill((string) $item['status']);
+        $error = trim((string) ($item['last_error'] ?? ''));
+
+        if ($error !== '') {
+            // Previously printed up to 120 characters raw, which wrapped to six
+            // lines and set the height of the whole row. Two clamped lines, full
+            // text in the tooltip.
+            $html .= sprintf(
+                '<span class="oy-cell__meta oy-clamp" title="%s">%s</span>',
+                esc_attr($error),
+                esc_html($error)
+            );
         }
+
         return $html;
     }
 
     /** @param array<string,mixed> $item */
     protected function column_images($item): string
     {
-        return sprintf('%d / %d', (int) $item['image_count'], (int) $item['media_total']);
+        $have = (int) $item['image_count'];
+        $want = (int) $item['media_total'];
+
+        if ($want === 0 && $have === 0) {
+            return '<span class="oy-muted">—</span>';
+        }
+
+        $complete = $want > 0 && $have >= $want;
+
+        return sprintf(
+            '<span class="oy-nowrap%s" title="%s">%d / %d</span>',
+            $complete ? '' : ' oy-muted',
+            esc_attr__('Imported files / files offered by the feed', 'otium-yachtfolio-sync'),
+            $have,
+            $want
+        );
     }
 
     /** @param array<string,mixed> $item */
     protected function column_modified($item): string
     {
-        return esc_html((string) $item['last_modified_remote']);
+        return $this->timestamp((string) $item['last_modified_remote']);
     }
 
     /** @param array<string,mixed> $item */
     protected function column_synced($item): string
     {
-        return esc_html(Menu::stamp($item['last_synced_at'] !== null ? (string) $item['last_synced_at'] : null));
+        return $this->timestamp($item['last_synced_at'] !== null ? (string) $item['last_synced_at'] : '');
+    }
+
+    /**
+     * The feed sends ISO 8601 with milliseconds and a Z suffix, which rendered
+     * raw and wrapped onto two lines. Both formats land here.
+     */
+    private function timestamp(string $raw): string
+    {
+        $raw = trim($raw);
+        if ($raw === '' || str_starts_with($raw, '0000')) {
+            return '<span class="oy-muted">—</span>';
+        }
+
+        $ts = strtotime(str_contains($raw, 'T') ? $raw : $raw . ' UTC');
+        if ($ts === false) {
+            return sprintf('<span class="oy-trunc" title="%s">%s</span>', esc_attr($raw), esc_html($raw));
+        }
+
+        return sprintf(
+            '<span class="oy-nowrap" title="%s">%s</span>',
+            esc_attr($raw),
+            esc_html((string) wp_date('Y-m-d H:i', $ts))
+        );
     }
 
     /** @param array<string,mixed> $item */

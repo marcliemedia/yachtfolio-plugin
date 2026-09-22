@@ -1057,6 +1057,287 @@ body.oy-yf-screen {
 /* metabox on the yacht editor sits outside .oy-yf */
 .oy-yf-metabox .oy-actions { margin-top: var(--oy-3); }
 
+/* ------------------------------------------------------------------ *
+ * DATA SCREENS
+ * The reading width that suits a settings form starves a nine-column
+ * table: at 1360px the last column was clipped. Data screens opt out.
+ * ------------------------------------------------------------------ */
+
+.oy-yf--wide {
+	max-width: none;
+}
+
+/* truncation ------------------------------------------------------ */
+
+/* Both carry the full value in `title`, so nothing is lost — only hidden. */
+.oy-trunc {
+	display: block;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.oy-clamp {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.oy-nowrap { white-space: nowrap; }
+
+/* list table column sizing ---------------------------------------- */
+
+.oy-yf .wp-list-table { table-layout: fixed; }
+
+.oy-yf .wp-list-table th,
+.oy-yf .wp-list-table td { overflow: hidden; }
+
+.oy-yf .wp-list-table .column-cb        { width: 34px; }
+.oy-yf .wp-list-table .column-yacht_name{ width: 24%; }
+.oy-yf .wp-list-table .column-post      { width: 17%; }
+.oy-yf .wp-list-table .column-visible   { width: 104px; }
+.oy-yf .wp-list-table .column-status    { width: 17%; }
+.oy-yf .wp-list-table .column-images    { width: 96px; }
+.oy-yf .wp-list-table .column-modified  { width: 116px; }
+.oy-yf .wp-list-table .column-synced    { width: 116px; }
+.oy-yf .wp-list-table .column-attention { width: 15%; }
+
+.oy-yf .wp-list-table td.column-images,
+.oy-yf .wp-list-table td.column-modified,
+.oy-yf .wp-list-table td.column-synced { font-variant-numeric: tabular-nums; }
+
+/* cell internals -------------------------------------------------- */
+
+.oy-cell__title {
+	display: block;
+	font-weight: 620;
+	color: var(--oy-text-strong);
+}
+
+.oy-cell__meta {
+	display: block;
+	margin-top: 1px;
+	color: var(--oy-text-muted);
+	font-size: var(--oy-fs-sm);
+}
+
+.oy-cell__stack > * + * { margin-top: var(--oy-1); }
+
+/* row actions: always visible.
+   WordPress reveals them on hover, which hides every per-yacht action behind
+   a gesture an admin has no reason to guess. */
+.oy-yf .wp-list-table .row-actions {
+	position: static;
+	left: auto;
+	padding: 0;
+	margin-top: var(--oy-2);
+	color: var(--oy-text-muted);
+	font-size: var(--oy-fs-sm);
+	line-height: 1.7;
+}
+
+.oy-yf .wp-list-table tr .row-actions { visibility: visible; }
+
+.oy-yf .row-actions span { white-space: nowrap; }
+
+.oy-yf .row-actions a {
+	color: var(--oy-accent-ink);
+	text-decoration: none;
+	font-weight: 550;
+}
+
+.oy-yf .row-actions a:hover { text-decoration: underline; }
+.oy-yf .row-actions .trash a,
+.oy-yf .row-actions .unlink a { color: var(--oy-bad-fg); }
+
+/* view filter chips ----------------------------------------------- */
+
+.oy-yf .subsubsub {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--oy-1);
+	float: none;
+	margin: 0 0 var(--oy-4);
+	padding: var(--oy-1);
+	border: 1px solid var(--oy-border);
+	border-radius: var(--oy-r-lg);
+	background: var(--oy-surface);
+	box-shadow: var(--oy-shadow-1);
+	font-size: var(--oy-fs-md);
+}
+
+.oy-yf .subsubsub li { margin: 0; color: transparent; }
+.oy-yf .subsubsub li a {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--oy-2);
+	padding: var(--oy-2) var(--oy-3);
+	border-radius: var(--oy-r-md);
+	color: var(--oy-n-600);
+	font-weight: 550;
+	text-decoration: none;
+}
+.oy-yf .subsubsub li a:hover { background: var(--oy-n-100); color: var(--oy-text-strong); }
+.oy-yf .subsubsub li a.current {
+	background: var(--oy-p-50);
+	color: var(--oy-accent-ink);
+	box-shadow: inset 0 0 0 1px var(--oy-p-200);
+}
+.oy-yf .subsubsub .count {
+	padding: 0 var(--oy-2);
+	border-radius: var(--oy-r-pill);
+	background: var(--oy-n-100);
+	color: var(--oy-n-700);
+	font-size: var(--oy-fs-xs);
+	font-weight: 650;
+	font-variant-numeric: tabular-nums;
+}
+.oy-yf .subsubsub li a.current .count { background: var(--oy-p-100); color: var(--oy-accent-ink); }
+
+/* toolbar ---------------------------------------------------------- */
+
+.oy-yf .tablenav.top,
+.oy-yf .tablenav.bottom {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--oy-3);
+	margin: 0 0 var(--oy-4);
+}
+
+.oy-yf .tablenav.bottom { margin: var(--oy-4) 0 0; }
+.oy-yf .tablenav br,
+.oy-yf .tablenav .clear { display: none; }
+
+.oy-yf .tablenav .actions {
+	display: flex;
+	align-items: center;
+	gap: var(--oy-2);
+	float: none;
+	padding: 0;
+}
+
+.oy-yf .tablenav-pages {
+	display: flex;
+	align-items: center;
+	gap: var(--oy-1);
+	float: none;
+	margin: 0;
+	color: var(--oy-text-muted);
+	font-size: var(--oy-fs-sm);
+}
+
+.oy-yf .tablenav-pages .displaying-num {
+	margin-right: var(--oy-2);
+	color: var(--oy-text-muted);
+	font-size: var(--oy-fs-sm);
+}
+
+.oy-yf .tablenav-pages a.page-numbers,
+.oy-yf .tablenav-pages a.next-page,
+.oy-yf .tablenav-pages a.prev-page,
+.oy-yf .tablenav-pages a.first-page,
+.oy-yf .tablenav-pages a.last-page,
+.oy-yf .tablenav-pages span.tablenav-pages-navspan {
+	display: inline-grid;
+	place-items: center;
+	min-width: 30px;
+	height: 30px;
+	padding: 0 var(--oy-2);
+	border: 1px solid var(--oy-border);
+	border-radius: var(--oy-r-md);
+	background: var(--oy-surface);
+	color: var(--oy-text-label);
+	text-decoration: none;
+}
+
+.oy-yf .tablenav-pages a:hover { background: var(--oy-n-50); border-color: var(--oy-n-300); }
+.oy-yf .tablenav-pages .paging-input { display: flex; align-items: center; gap: var(--oy-1); }
+.oy-yf .tablenav-pages .current-page { width: 48px; text-align: center; }
+
+.oy-yf .search-box {
+	display: flex;
+	align-items: center;
+	gap: var(--oy-2);
+	float: none;
+}
+
+.oy-yf .search-box input[type="search"] { min-width: 230px; }
+
+/* sortable headers */
+.oy-yf .wp-list-table thead th a {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--oy-1);
+	color: inherit;
+	text-decoration: none;
+}
+.oy-yf .wp-list-table thead th a:hover { color: var(--oy-accent-ink); }
+
+/* guidance banner -------------------------------------------------- */
+
+.oy-guide {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--oy-3);
+	margin-bottom: var(--oy-4);
+	padding: var(--oy-3) var(--oy-4);
+	border: 1px solid var(--oy-p-200);
+	border-radius: var(--oy-r-lg);
+	background: var(--oy-p-50);
+	color: var(--oy-p-900);
+	font-size: var(--oy-fs-md);
+}
+
+.oy-guide__step {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--oy-2);
+}
+
+.oy-guide__n {
+	display: inline-grid;
+	place-items: center;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	background: var(--oy-p-600);
+	color: var(--oy-n-0);
+	font-size: var(--oy-fs-xs);
+	font-weight: 700;
+}
+
+.oy-guide__arrow { color: var(--oy-p-400); }
+/* The bulk Apply button is the payoff of the whole toolbar; WordPress renders
+   it as a plain secondary, indistinguishable from the filter next to it. */
+.oy-yf .tablenav .actions #doaction,
+.oy-yf .tablenav .actions #doaction2 {
+	border-color: var(--oy-p-600);
+	background: var(--oy-p-600);
+	color: var(--oy-n-0);
+	font-weight: 600;
+}
+
+.oy-yf .tablenav .actions #doaction:hover,
+.oy-yf .tablenav .actions #doaction2:hover {
+	background: var(--oy-p-700);
+	border-color: var(--oy-p-700);
+	color: var(--oy-n-0);
+}
+
+/* Alerts badge: a count of things that are wrong should not read as neutral. */
+.oy-tabs__link .oy-tabs__count {
+	background: var(--oy-warn-bg);
+	color: var(--oy-warn-fg);
+	box-shadow: inset 0 0 0 1px var(--oy-warn-edge);
+}
+
+
 @media (max-width: 782px) {
 	.oy-yf { padding: var(--oy-4) var(--oy-3) var(--oy-10); }
 	.oy-yf .form-table > tbody > tr { grid-template-columns: minmax(0, 1fr); gap: var(--oy-2); }

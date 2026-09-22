@@ -23,6 +23,7 @@ final class Menu
     public const SLUG_LOGS      = 'oy-yf-logs';
     public const SLUG_TOOLS     = 'oy-yf-tools';
     public const SLUG_SETTINGS  = 'oy-yf-settings';
+    public const SLUG_ALERTS    = 'oy-yf-alerts';
 
     /** Single nonce action shared by every AJAX endpoint. */
     public const NONCE_AJAX = 'oy_yf_admin';
@@ -37,6 +38,7 @@ final class Menu
     private ?MappingScreen $mapping = null;
     private ?LogsScreen $logs = null;
     private ?ToolsScreen $tools = null;
+    private ?AlertsScreen $alerts = null;
     private ?YachtMetabox $metabox = null;
     private ?Ajax $ajax = null;
 
@@ -49,80 +51,68 @@ final class Menu
         add_action('admin_menu', [$this, 'add_pages']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue']);
         add_filter('admin_body_class', [$this, 'body_class']);
+
+        // Our screens print exactly one kind of notice: the result of the action
+        // the admin just took. Everything else — this plugin's own standing
+        // warnings included — lives on the Alerts tab, so the top of a working
+        // screen is not a noticeboard.
+        add_action('in_admin_header', [$this, 'quiet_notices'], 99);
         add_action('admin_notices', [$this, 'print_flash']);
-        add_action('admin_notices', [$this, 'print_attention_notice']);
 
         $this->dashboard()->register();
         $this->settings_screen()->register();
         $this->mapping()->register();
         $this->logs()->register();
         $this->tools()->register();
+        $this->alerts()->register();
         $this->metabox()->register();
         $this->ajax()->register();
     }
 
     /**
-     * Yachtfolio withdraws a yacht's structured detail record silently: HTTP
-     * 200, no errors, zero rows. Nobody opens a report to discover that, so it
-     * is pushed into wp-admin instead. Data is kept and nothing is unpublished;
-     * this notice is the only thing that changes.
+     * Strips every queued admin notice from our own screens.
+     *
+     * Third-party plugins treat the top of every admin page as advertising
+     * space, and this plugin used to add its own standing warning to the pile.
+     * The result was that the first thing an admin saw on a working screen was
+     * a stack of things unrelated to the task. Standing conditions belong on
+     * the Alerts tab, which carries a live count in the tab strip; only the
+     * outcome of the admin's own last action is still printed inline.
+     *
+     * Scoped to this plugin's pages: notices elsewhere in wp-admin are
+     * untouched.
      */
-    public function print_attention_notice(): void
+    public function quiet_notices(): void
     {
-        if (!current_user_can(Activator::CAPABILITY)) {
+        if (!$this->is_our_page()) {
             return;
         }
 
+        remove_all_actions('admin_notices');
+        remove_all_actions('all_admin_notices');
+        add_action('admin_notices', [$this, 'print_flash']);
+    }
+
+    private function is_our_page(): bool
+    {
+        if (!function_exists('get_current_screen')) {
+            return false;
+        }
+        $screen = get_current_screen();
+        return $screen !== null && in_array($screen->id, $this->hooks, true);
+    }
+
+    /**
+     * Number of standing conditions an admin should look at. Drives the badge
+     * on the Alerts tab, so the information the old top-of-page notice carried
+     * is still impossible to miss without shouting.
+     */
+    public function alert_count(): int
+    {
         $map = $this->plugin->map();
-        $detail = $map->count_detail_unavailable();
-        $lost   = $map->count_authorisation_lost();
 
-        if ($detail === 0 && $lost === 0) {
-            return;
-        }
-
-        $lines = [];
-        if ($detail > 0) {
-            $rows = [];
-            foreach ($map->all(['attention' => true, 'limit' => 20]) as $row) {
-                $flags = \Otium\Yachtfolio\Sync\YachtMapStore::split_flags((string) $row['attention']);
-                if (!in_array(\Otium\Yachtfolio\Sync\YachtMapStore::ATTENTION_DETAIL_LOST, $flags, true)) {
-                    continue;
-                }
-                $since = (string) ($row['authorisation_last_ok_at'] ?? '');
-                $rows[] = esc_html((string) $row['yacht_name']) . ($since !== '' ? ' <em>(' . esc_html($since) . ')</em>' : '');
-            }
-            $lines[] = sprintf(
-                /* translators: 1: count, 2: yacht list */
-                _n(
-                    '%1$d yacht has no structured detail record from Yachtfolio, so its rates, amenities and cruising areas cannot be refreshed: %2$s',
-                    '%1$d yachts have no structured detail record from Yachtfolio, so their rates, amenities and cruising areas cannot be refreshed: %2$s',
-                    $detail,
-                    'otium-yachtfolio-sync'
-                ),
-                $detail,
-                implode(', ', $rows)
-            );
-        }
-        if ($lost > 0) {
-            $lines[] = sprintf(
-                _n(
-                    '%d yacht returns no data at all while still being listed. Its content is untouched and it has NOT been unpublished.',
-                    '%d yachts return no data at all while still being listed. Their content is untouched and they have NOT been unpublished.',
-                    $lost,
-                    'otium-yachtfolio-sync'
-                ),
-                $lost
-            );
-        }
-
-        printf(
-            '<div class="notice notice-warning"><p><strong>%s</strong></p><p>%s</p><p><a href="%s">%s</a></p></div>',
-            esc_html__('Yachtfolio needs attention', 'otium-yachtfolio-sync'),
-            implode('</p><p>', $lines),
-            esc_url(admin_url('admin.php?page=' . self::SLUG_YACHTS . '&attention=1')),
-            esc_html__('Review the affected yachts', 'otium-yachtfolio-sync')
-        );
+        return $map->count(['attention' => true])
+            + $map->count(['status' => YachtMapStore::STATUS_ERROR]);
     }
 
     public function add_pages(): void
@@ -139,17 +129,25 @@ final class Menu
             58
         );
 
+        $alerts = $this->alert_count();
+        $alertLabel = __('Alerts', 'otium-yachtfolio-sync');
+        $alertMenuLabel = $alerts > 0
+            ? $alertLabel . ' <span class="update-plugins count-' . $alerts . '"><span class="update-count">'
+                . number_format_i18n($alerts) . '</span></span>'
+            : $alertLabel;
+
         $pages = [
-            [self::SLUG_DASHBOARD, __('Dashboard', 'otium-yachtfolio-sync'), [$this->dashboard(), 'render']],
-            [self::SLUG_YACHTS, __('Yachts', 'otium-yachtfolio-sync'), [$this, 'render_yachts']],
-            [self::SLUG_MAPPING, __('Mapping', 'otium-yachtfolio-sync'), [$this->mapping(), 'render']],
-            [self::SLUG_LOGS, __('Logs', 'otium-yachtfolio-sync'), [$this->logs(), 'render']],
-            [self::SLUG_TOOLS, __('Tools', 'otium-yachtfolio-sync'), [$this->tools(), 'render']],
-            [self::SLUG_SETTINGS, __('Settings', 'otium-yachtfolio-sync'), [$this->settings_screen(), 'render']],
+            [self::SLUG_DASHBOARD, __('Dashboard', 'otium-yachtfolio-sync'), __('Dashboard', 'otium-yachtfolio-sync'), [$this->dashboard(), 'render']],
+            [self::SLUG_YACHTS, __('Yachts', 'otium-yachtfolio-sync'), __('Yachts', 'otium-yachtfolio-sync'), [$this, 'render_yachts']],
+            [self::SLUG_ALERTS, $alertLabel, $alertMenuLabel, [$this->alerts(), 'render']],
+            [self::SLUG_MAPPING, __('Mapping', 'otium-yachtfolio-sync'), __('Mapping', 'otium-yachtfolio-sync'), [$this->mapping(), 'render']],
+            [self::SLUG_LOGS, __('Logs', 'otium-yachtfolio-sync'), __('Logs', 'otium-yachtfolio-sync'), [$this->logs(), 'render']],
+            [self::SLUG_TOOLS, __('Tools', 'otium-yachtfolio-sync'), __('Tools', 'otium-yachtfolio-sync'), [$this->tools(), 'render']],
+            [self::SLUG_SETTINGS, __('Settings', 'otium-yachtfolio-sync'), __('Settings', 'otium-yachtfolio-sync'), [$this->settings_screen(), 'render']],
         ];
 
-        foreach ($pages as [$slug, $label, $callback]) {
-            $hook = add_submenu_page(self::SLUG_DASHBOARD, $label, $label, $cap, $slug, $callback);
+        foreach ($pages as [$slug, $pageTitle, $menuLabel, $callback]) {
+            $hook = add_submenu_page(self::SLUG_DASHBOARD, $pageTitle, $menuLabel, $cap, $slug, $callback);
             if (is_string($hook) && $hook !== '') {
                 $this->hooks[] = $hook;
             }
@@ -429,9 +427,12 @@ final class Menu
         string $current,
         string $title,
         string $subtitle = '',
-        string $actionsHtml = ''
+        string $actionsHtml = '',
+        bool $wide = false
     ): void {
-        echo '<div class="wrap oy-yf">';
+        // Data screens opt out of the reading-width cap: a nine-column table
+        // does not fit in the width that suits a settings form.
+        printf('<div class="wrap oy-yf%s">', $wide ? ' oy-yf--wide' : '');
         echo '<div class="oy-hero"><div class="oy-hero__text">';
         printf(
             '<p class="oy-hero__eyebrow"><span class="oy-hero__mark" aria-hidden="true">OY</span>%s</p>',
@@ -461,23 +462,36 @@ final class Menu
         $tabs = [
             self::SLUG_DASHBOARD => __('Dashboard', 'otium-yachtfolio-sync'),
             self::SLUG_YACHTS    => __('Yachts', 'otium-yachtfolio-sync'),
+            self::SLUG_ALERTS    => __('Alerts', 'otium-yachtfolio-sync'),
             self::SLUG_MAPPING   => __('Mapping', 'otium-yachtfolio-sync'),
             self::SLUG_LOGS      => __('Logs', 'otium-yachtfolio-sync'),
             self::SLUG_TOOLS     => __('Tools', 'otium-yachtfolio-sync'),
             self::SLUG_SETTINGS  => __('Settings', 'otium-yachtfolio-sync'),
         ];
 
+        $alerts = Plugin::instance()->menu()->alert_count();
+
         echo '<nav class="oy-tabs" aria-label="' . esc_attr__('Yachtfolio sections', 'otium-yachtfolio-sync') . '">';
         foreach ($tabs as $slug => $label) {
             $active = $slug === $current;
+            $badge  = '';
+            if ($slug === self::SLUG_ALERTS && $alerts > 0) {
+                $badge = sprintf('<span class="oy-tabs__count">%s</span>', esc_html(number_format_i18n($alerts)));
+            }
             printf(
-                '<a href="%s" class="oy-tabs__link%s"%s>%s</a>',
+                '<a href="%s" class="oy-tabs__link%s"%s>%s%s</a>',
                 esc_url(self::url($slug)),
                 $active ? ' is-active' : '',
                 $active ? ' aria-current="page"' : '',
-                esc_html($label)
+                esc_html($label),
+                $badge
             );
         }
         echo '</nav>';
+    }
+
+    public function alerts(): AlertsScreen
+    {
+        return $this->alerts ??= new AlertsScreen($this->plugin);
     }
 }

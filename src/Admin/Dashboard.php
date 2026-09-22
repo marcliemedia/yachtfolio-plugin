@@ -177,7 +177,12 @@ final class Dashboard
                 Menu::flash(__('Unknown action.', 'otium-yachtfolio-sync'), 'error');
         }
 
-        Menu::go(Menu::SLUG_DASHBOARD);
+        // These actions are offered from more than one screen now; send the
+        // admin back where they were instead of always to the dashboard.
+        $allowed = [Menu::SLUG_DASHBOARD, Menu::SLUG_YACHTS, Menu::SLUG_ALERTS];
+        $return  = isset($_POST['oy_yf_return']) ? sanitize_key((string) wp_unslash($_POST['oy_yf_return'])) : '';
+
+        Menu::go(in_array($return, $allowed, true) ? $return : Menu::SLUG_DASHBOARD);
     }
 
     /** A single headline number. $tone is '', 'accent', 'warn' or 'bad'. */
