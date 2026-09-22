@@ -112,7 +112,10 @@ final class Menu
         $map = $this->plugin->map();
 
         return $map->count(['attention' => true])
-            + $map->count(['status' => YachtMapStore::STATUS_ERROR]);
+            + $map->count(['status' => YachtMapStore::STATUS_ERROR])
+            // Published with the Visible gate closed: not an error, but it is a
+            // decision nobody has taken yet, which is what this tab is for.
+            + $map->count(['published_not_visible' => true]);
     }
 
     public function add_pages(): void

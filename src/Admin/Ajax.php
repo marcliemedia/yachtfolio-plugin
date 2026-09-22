@@ -237,9 +237,37 @@ final class Ajax
 
                 case 'show':
                 case 'hide':
-                    if ($postId > 0) {
-                        update_post_meta($postId, 'yf_visible', $operation === 'show' ? 'true' : 'false');
-                        $done++;
+                    if ($postId <= 0) {
+                        $skipped[] = sprintf(
+                            /* translators: %s: yacht name */
+                            __('%s: not linked to a post', 'otium-yachtfolio-sync'),
+                            (string) $row['yacht_name']
+                        );
+                        break;
+                    }
+                    update_post_meta($postId, 'yf_visible', $operation === 'show' ? 'true' : 'false');
+                    $done++;
+                    break;
+
+                case 'show_sync':
+                    if ($postId <= 0) {
+                        $skipped[] = sprintf(
+                            /* translators: %s: yacht name */
+                            __('%s: not linked to a post', 'otium-yachtfolio-sync'),
+                            (string) $row['yacht_name']
+                        );
+                        break;
+                    }
+                    // Order matters: the gate has to be open before the pass
+                    // runs, or the media step skips the yacht it was opened for.
+                    update_post_meta($postId, 'yf_visible', 'true');
+                    $result = $this->plugin->orchestrator()->sync_yacht($yfId, [
+                        'dry_run' => false,
+                        'trigger' => 'admin',
+                    ]);
+                    $done++;
+                    if ($result['status'] === 'error') {
+                        $messages[] = sprintf('%s: %s', (string) $row['yacht_name'], (string) $result['message']);
                     }
                     break;
 

@@ -39,6 +39,7 @@ final class AlertsScreen
         $authLost   = $map->count_authorisation_lost();
         $errors     = $map->count(['status' => YachtMapStore::STATUS_ERROR]);
         $stale      = $map->count(['status' => YachtMapStore::STATUS_STALE]);
+        $ungated    = $map->count(['published_not_visible' => true]);
 
         Menu::open_page(
             Menu::SLUG_ALERTS,
@@ -68,6 +69,12 @@ final class AlertsScreen
             $errors > 0 ? 'bad' : ''
         );
         $this->stat(
+            __('Live but not visible', 'otium-yachtfolio-sync'),
+            $ungated,
+            __('public with no media import', 'otium-yachtfolio-sync'),
+            $ungated > 0 ? 'warn' : ''
+        );
+        $this->stat(
             __('Stale', 'otium-yachtfolio-sync'),
             $stale,
             __('gone from the feed', 'otium-yachtfolio-sync'),
@@ -75,12 +82,62 @@ final class AlertsScreen
         );
         echo '</div>';
 
+        $this->ungated_section($ungated);
         $this->attention_section();
         $this->error_log_section();
 
         Menu::close_page();
     }
 
+
+    /**
+     * Published yachts with the Visible gate closed.
+     *
+     * Not an error — it is what happens when a yacht was published by hand, or
+     * before the gate existed. It matters because Visible is also what allows
+     * media to be imported, so these pages are live with galleries that will
+     * never be fetched. The fix is a bulk action, so this links straight at it
+     * rather than listing rows that would only be read and not acted on.
+     */
+    private function ungated_section(int $count): void
+    {
+        if ($count === 0) {
+            return;
+        }
+
+        echo '<section class="oy-section">';
+        echo '<div class="oy-section__head"><h2 class="oy-section__title">'
+            . esc_html__('Live but not visible', 'otium-yachtfolio-sync') . '</h2></div>';
+
+        echo '<div class="oy-card oy-card--flag"><div class="oy-card__body">';
+        printf(
+            '<p>%s</p>',
+            esc_html(sprintf(
+                /* translators: %d: number of yachts */
+                _n(
+                    '%d published yacht has the Visible gate switched off.',
+                    '%d published yachts have the Visible gate switched off.',
+                    $count,
+                    'otium-yachtfolio-sync'
+                ),
+                $count
+            ))
+        );
+        printf(
+            '<p class="description">%s</p>',
+            esc_html__('Their pages are public, but because Visible also gates media import, no gallery is ever fetched for them. Nothing is wrong with the content already on the page — it simply will not gain images.', 'otium-yachtfolio-sync')
+        );
+        printf(
+            '<p class="description">%s</p>',
+            esc_html__('To fix: open the filtered list, tick the yachts you want public with media, and apply "Set visible and sync now". Leave any yacht you would rather keep without a gallery.', 'otium-yachtfolio-sync')
+        );
+        printf(
+            '<p><a class="oy-btn oy-btn--primary" href="%s">%s</a></p>',
+            esc_url(Menu::url(Menu::SLUG_YACHTS, ['view' => 'ungated'])),
+            esc_html__('Review these yachts', 'otium-yachtfolio-sync')
+        );
+        echo '</div></div></section>';
+    }
     /* ------------------------------------------------------------------ */
 
     private function attention_section(): void

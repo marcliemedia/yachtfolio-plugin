@@ -148,6 +148,10 @@ final class YachtsTable extends \WP_List_Table
             'unselect'  => __('Remove from sync selection', 'otium-yachtfolio-sync'),
             'show'      => __('Set visible', 'otium-yachtfolio-sync'),
             'hide'      => __('Set hidden', 'otium-yachtfolio-sync'),
+            // Setting Visible does not fetch anything on its own; the media is
+            // only pulled on the next pass. Doing both in one action is the
+            // difference between one step and two for a batch of yachts.
+            'show_sync' => __('Set visible and sync now', 'otium-yachtfolio-sync'),
             'sync'      => __('Sync now', 'otium-yachtfolio-sync'),
             'dry_run'   => __('Dry run', 'otium-yachtfolio-sync'),
             // Publishing in bulk still honours the Visible gate; anything not
@@ -168,6 +172,7 @@ final class YachtsTable extends \WP_List_Table
             'selected'   => $map->count(['selected' => true]),
             'owned'      => $map->count(['owned' => true]),
             'incomplete' => $map->count(['incomplete' => true]),
+            'ungated'    => $map->count(['published_not_visible' => true]),
             'attention'  => $map->count(['attention' => true]),
             'error'      => $map->count(['status' => YachtMapStore::STATUS_ERROR]),
             'stale'      => $map->count(['status' => YachtMapStore::STATUS_STALE]),
@@ -181,6 +186,9 @@ final class YachtsTable extends \WP_List_Table
             // Imported but short of at least one scored section — the yachts
             // worth re-running before anything gets published.
             'incomplete' => __('Incomplete data', 'otium-yachtfolio-sync'),
+            // Public on the site while the Visible gate is closed, so their
+            // media is never imported. Filter, select all, then fix in bulk.
+            'ungated'    => __('Live but not visible', 'otium-yachtfolio-sync'),
             'attention'  => __('Needs attention', 'otium-yachtfolio-sync'),
             'error'      => __('Errors', 'otium-yachtfolio-sync'),
             'stale'      => __('Stale', 'otium-yachtfolio-sync'),
@@ -222,6 +230,7 @@ final class YachtsTable extends \WP_List_Table
             'selected'   => $args['selected'] = true,
             'owned'      => $args['owned'] = true,
             'incomplete' => $args['incomplete'] = true,
+            'ungated'    => $args['published_not_visible'] = true,
             'attention'  => $args['attention'] = true,
             'error'      => $args['status'] = YachtMapStore::STATUS_ERROR,
             'stale'      => $args['status'] = YachtMapStore::STATUS_STALE,
@@ -246,6 +255,9 @@ final class YachtsTable extends \WP_List_Table
         }
         if ($postIds !== []) {
             update_meta_cache('post', $postIds);
+            // The Post and Visible columns both need the post row itself
+            // (status, title); one prime instead of a query per cell.
+            _prime_post_caches($postIds, false, false);
         }
 
         $this->_column_headers = [$this->get_columns(), [], $this->get_sortable_columns()];
@@ -385,15 +397,31 @@ final class YachtsTable extends \WP_List_Table
             );
         }
 
-        return $this->switch_control(
+        $on = (string) get_post_meta($postId, 'yf_visible', true) === 'true';
+
+        $control = $this->switch_control(
             (int) $item['yf_id'],
             'oy_yf_toggle_visible',
-            (string) get_post_meta($postId, 'yf_visible', true) === 'true',
+            $on,
             __('Visible', 'otium-yachtfolio-sync'),
             __('Hidden', 'otium-yachtfolio-sync'),
             __('Media is imported and the yacht may be published.', 'otium-yachtfolio-sync'),
             __('No media is imported and the yacht must not be published.', 'otium-yachtfolio-sync')
         );
+
+        // A published yacht with the gate closed is the contradiction the table
+        // used to show silently: the Post column says "publish" while this one
+        // says "Hidden". They mean different things, but the consequence is
+        // real — the page is live and its gallery will never be fetched.
+        if (!$on && get_post_status($postId) === 'publish') {
+            $control .= sprintf(
+                '<span class="oy-cell__meta"><span class="oy-pill oy-pill--warn" title="%s">%s</span></span>',
+                esc_attr__('This yacht is public but the Visible gate is off, so no media is imported for it. Switch Visible on, then run a sync.', 'otium-yachtfolio-sync'),
+                esc_html__('live, ungated', 'otium-yachtfolio-sync')
+            );
+        }
+
+        return $control;
     }
 
     /**

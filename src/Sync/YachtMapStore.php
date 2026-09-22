@@ -211,6 +211,26 @@ final class YachtMapStore
             $where[] = 'post_id IS NOT NULL AND data_score < %d';
             $params[] = \Otium\Yachtfolio\Write\DataScore::MAX;
         }
+        /**
+         * Live on the site while the Visible gate is off.
+         *
+         * Visible is what allows media to be imported and publishing to be
+         * offered, so a published yacht with the gate closed is a contradiction:
+         * the page is public but its gallery will never be fetched. Both facts
+         * live outside this table, hence the two EXISTS clauses rather than a
+         * column of our own — this is a report, not a hot path.
+         */
+        if (!empty($args['published_not_visible'])) {
+            // The outer column MUST be qualified: inside the postmeta subquery an
+            // unqualified `post_id` resolves to wp_postmeta's own column, which
+            // would make the condition self-referential and always true.
+            $self = self::table();
+            $where[] = "$self.post_id IS NOT NULL"
+                . " AND EXISTS (SELECT 1 FROM {$wpdb->posts} p"
+                . "     WHERE p.ID = $self.post_id AND p.post_status = 'publish')"
+                . " AND NOT EXISTS (SELECT 1 FROM {$wpdb->postmeta} m"
+                . "     WHERE m.post_id = $self.post_id AND m.meta_key = 'yf_visible' AND m.meta_value = 'true')";
+        }
         if (!empty($args['search'])) {
             $where[] = '(yacht_name LIKE %s OR yf_id = %d)';
             $params[] = '%' . $wpdb->esc_like((string) $args['search']) . '%';
