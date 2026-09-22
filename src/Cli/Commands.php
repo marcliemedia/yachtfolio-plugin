@@ -78,8 +78,11 @@ final class Commands
      * : selected (default) or all.
      * [--limit=<n>]
      * [--force]
-     * [--no-enqueue]
+     * [--skip-enqueue]
      * : compute candidates without queueing anything.
+     *
+     * WP-CLI reads a leading `--no-` as the negation of a declared flag, so the
+     * documented `--no-enqueue` was rejected with "unknown --enqueue parameter".
      */
     public function index(array $args, array $assoc): void
     {
@@ -89,7 +92,7 @@ final class Commands
             'scope'   => (string) ($assoc['scope'] ?? $this->plugin()->settings()->get('detail_scope', 'selected')),
             'limit'   => (int) ($assoc['limit'] ?? 0),
             'force'   => isset($assoc['force']),
-            'enqueue' => !isset($assoc['no-enqueue']),
+            'enqueue' => !isset($assoc['skip-enqueue']),
         ]);
 
         if (empty($summary['ok'])) {
