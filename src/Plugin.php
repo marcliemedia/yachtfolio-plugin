@@ -26,6 +26,7 @@ use Otium\Yachtfolio\Sync\RunStore;
 use Otium\Yachtfolio\Sync\YachtMapStore;
 use Otium\Yachtfolio\Write\Writer;
 use Otium\Yachtfolio\Update\GitHubUpdater;
+use Otium\Yachtfolio\Media\ImageSizes;
 
 /**
  * Hand-rolled service container. Everything is lazy so a front-end request
@@ -80,6 +81,9 @@ final class Plugin
         // inside the update cycle only, and is cached.
         $this->updater()->register();
 
+        // Also outside is_admin(): the importer creates attachments from cron.
+        $this->imageSizes()->register();
+
         if (is_admin()) {
             $this->menu()->register();
         }
@@ -133,6 +137,11 @@ final class Plugin
     public function settings(): Settings
     {
         return $this->service(Settings::class, static fn(): Settings => new Settings());
+    }
+
+    public function imageSizes(): ImageSizes
+    {
+        return $this->service(ImageSizes::class, fn(): ImageSizes => new ImageSizes($this->settings()));
     }
 
     public function updater(): GitHubUpdater

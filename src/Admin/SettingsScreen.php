@@ -163,8 +163,14 @@ final class SettingsScreen
             echo '</div>';
             echo '<p class="description">' . esc_html__('EXTERIOR, INTERIOR, LIFESTYLE and PDF are subsets of FULL (verified on the live feed) — selecting them only creates duplicates. LAYOUT is not always inside FULL, so keep it.', 'otium-yachtfolio-sync') . '</p>';
         });
-        $this->number_row($s, 'media_cap_per_yacht', __('Max files per yacht', 'otium-yachtfolio-sync'));
-        $this->number_row($s, 'media_batch_size', __('Files per media job', 'otium-yachtfolio-sync'));
+        $this->number_row($s, 'media_cap_per_yacht', __('Max files per yacht', 'otium-yachtfolio-sync'), __('Measured on the live feed: a yacht offers 48 unique images on average once duplicate buckets are removed. A charter page rarely shows more than 30.', 'otium-yachtfolio-sync'));
+        $this->number_row($s, 'media_batch_size', __('Files per media job', 'otium-yachtfolio-sync'), __('One job must finish inside the PHP time limit (30s here). Twenty files leaves 1.5s per file including resize and WebP encoding; five is safe.', 'otium-yachtfolio-sync'));
+        $this->checkbox_row(
+            $s,
+            'trim_image_sizes',
+            __('Skip the 1536px and 2048px sizes', 'otium-yachtfolio-sync'),
+            __('WordPress adds these two automatically. They appear only inside srcset, never as a plain src, and "large" sits between them. Measured saving on a full import: 2.30 GB and 20,639 files. Existing images keep the sizes they already have.', 'otium-yachtfolio-sync')
+        );
         $this->checkbox_row($s, 'import_sample_menu', __('Import the sample menu PDF', 'otium-yachtfolio-sync'));
         $this->checkbox_row($s, 'import_crew_photos', __('Import crew photos', 'otium-yachtfolio-sync'));
         $this->checkbox_row($s, 'set_featured_image', __('Set the featured image when the post has none', 'otium-yachtfolio-sync'));
@@ -348,7 +354,7 @@ final class SettingsScreen
             }
         }
 
-        foreach (['import_brochure', 'import_media', 'create_terms', 'import_sample_menu', 'import_crew_photos', 'set_featured_image', 'remove_data_on_uninstall', 'update_prereleases'] as $key) {
+        foreach (['import_brochure', 'import_media', 'create_terms', 'import_sample_menu', 'import_crew_photos', 'set_featured_image', 'remove_data_on_uninstall', 'update_prereleases', 'trim_image_sizes'] as $key) {
             $patch[$key] = !empty($post[$key]);
         }
 

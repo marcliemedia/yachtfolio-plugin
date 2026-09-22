@@ -50,6 +50,11 @@ final class Settings
             // the two exactly as that plugin's `only_smaller` would.
             'convert_to_webp'      => true,
             'webp_quality'         => 85,       // matches the site's WebP Converter setting
+            // Off by default: dropping a registered image size changes WordPress
+            // behaviour for every upload on the site, not just this importer's.
+            // Turn it on only after checking the theme does not select those
+            // sizes. See Media\ImageSizes for the measurements.
+            'trim_image_sizes'     => false,
             'import_sample_menu'   => false,
             'import_crew_photos'   => true,
             'set_featured_image'   => true,     // only when the post has none
