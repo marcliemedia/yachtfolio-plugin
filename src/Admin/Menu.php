@@ -103,15 +103,22 @@ final class Menu
     }
 
     /**
-     * Number of standing conditions an admin should look at. Drives the badge
-     * on the Alerts tab, so the information the old top-of-page notice carried
-     * is still impossible to miss without shouting.
+     * Number of things that are actually wrong. Drives the badge on the Alerts
+     * tab.
+     *
+     * Operational failures only. Editorial gaps — a yacht the feed ships with
+     * no description or no prices — are real and worth seeing, but they are not
+     * failures and there are 114 of them across the catalogue. Counting those
+     * put 123 on the badge and buried the handful of yachts that had genuinely
+     * broken, which is the exact noise this tab was created to remove. They
+     * stay visible in the Attention column and in the Incomplete data filter.
      */
     public function alert_count(): int
     {
         $map = $this->plugin->map();
 
-        return $map->count(['attention' => true])
+        return $map->count_detail_unavailable()
+            + $map->count_authorisation_lost()
             + $map->count(['status' => YachtMapStore::STATUS_ERROR])
             // Published with the Visible gate closed: not an error, but it is a
             // decision nobody has taken yet, which is what this tab is for.
