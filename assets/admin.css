@@ -1092,6 +1092,30 @@ body.oy-yf-screen {
 	max-width: 620px;
 }
 
+/* A long editable grid cannot be paginated without losing the fields the
+   browser never rendered, so it scrolls in place instead. The header stays
+   put so the columns remain identifiable while scrolling. */
+.oy-scroll {
+	max-height: 560px;
+	overflow: auto;
+	border: 1px solid var(--oy-border);
+	border-radius: var(--oy-r-lg);
+	background: var(--oy-surface);
+	box-shadow: var(--oy-shadow-1);
+}
+
+.oy-scroll > .oy-table {
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+}
+
+.oy-scroll > .oy-table thead th {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+}
+
 .oy-yf .form-table td.description,
 .oy-yf .form-table td .description {
 	max-width: 78ch;

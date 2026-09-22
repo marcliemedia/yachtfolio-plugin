@@ -77,6 +77,10 @@ final class MappingScreen
         echo '<h2 class="oy-section__title" style="margin:var(--oy-8) 0 var(--oy-2)">' . esc_html__('Field map', 'otium-yachtfolio-sync') . '</h2>';
         echo '<p class="description">' . esc_html__('Source is a specification key from the feed (dotted paths allowed, e.g. video.video_url). Transform names come from the transform catalogue. Owner "addon" means the sync never touches the field.', 'otium-yachtfolio-sync') . '</p>';
 
+        // Scroll rather than paginate: this is one form, and a browser only
+        // submits the fields it has rendered. Paging it would silently drop
+        // every mapping on the pages the admin did not visit.
+        echo '<div class="oy-scroll">';
         echo '<table class="oy-table"><thead><tr>'
             . '<th>' . esc_html__('Meta key', 'otium-yachtfolio-sync') . '</th>'
             . '<th>' . esc_html__('Source', 'otium-yachtfolio-sync') . '</th>'
@@ -98,7 +102,7 @@ final class MappingScreen
                 selected($entry['owner'], 'addon', false)
             );
         }
-        echo '</tbody></table>';
+        echo '</tbody></table></div>';
 
         echo '<div class="oy-savebar">';
         echo '<button type="submit" class="oy-btn oy-btn--danger" name="oy_yf_reset" value="1" onclick="return confirm(\'' . esc_js(__('Reset every mapping table to its defaults?', 'otium-yachtfolio-sync')) . '\')">'
@@ -203,7 +207,7 @@ final class MappingScreen
      */
     private function pair_table(string $prefix, array $map, string $fromLabel, string $toLabel): void
     {
-        echo '<table class="oy-table"><thead><tr>'
+        echo '<div class="oy-scroll"><table class="oy-table"><thead><tr>'
             . '<th>' . esc_html($fromLabel) . '</th>'
             . '<th>' . esc_html($toLabel) . '</th>'
             . '</tr></thead><tbody>';
@@ -224,7 +228,7 @@ final class MappingScreen
             $index++;
         }
 
-        echo '</tbody></table>';
+        echo '</tbody></table></div>';
     }
 
     /**
