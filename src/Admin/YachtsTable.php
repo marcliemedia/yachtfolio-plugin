@@ -490,13 +490,21 @@ final class YachtsTable extends \WP_List_Table
 
         $tone = $filled === $total ? ' oy-meter--full' : ($filled === 0 ? ' oy-meter--empty' : '');
 
-        $tooltip = $filled === $total
-            ? __('Complete: rates, amenities, crew, toys and gallery are all present.', 'otium-yachtfolio-sync')
-            : sprintf(
+        if ($filled === $total) {
+            $tooltip = __('Complete: rates, amenities, crew, toys and gallery are all present.', 'otium-yachtfolio-sync');
+        } elseif ($filled === 0) {
+            // A zero here is not proof the yacht is empty. The section markers
+            // are written during a sync, so a yacht imported before they were
+            // tracked reports zero until it is synced again. Saying "empty"
+            // would be a claim the data does not support.
+            $tooltip = __('No sections recorded. Either nothing came back for this yacht, or it was imported before sections were tracked — run a sync to settle it.', 'otium-yachtfolio-sync');
+        } else {
+            $tooltip = sprintf(
                 /* translators: %s: comma separated list of missing sections */
                 __('Missing: %s', 'otium-yachtfolio-sync'),
                 implode(', ', $missing)
             );
+        }
 
         // Media progress is part of the same question, so it rides along in the
         // label rather than occupying a column of its own.
