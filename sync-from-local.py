@@ -30,7 +30,19 @@ from pathlib import Path
 DEFAULT_SRC = r"D:/local-wordpress/otium-yatch/app/public/wp-content/plugins/otium-yachtfolio-sync"
 
 # Files that belong to the repository, not to the plugin. Never mirrored away.
-REPO_OWNED = {".git", ".gitignore", ".gitattributes", "README.md", "sync-from-local.py"}
+# Includes the local-only project workspace (notes, changelog, credentials) —
+# mirror() deletes everything else, and those files are git-ignored, so a
+# deletion here would be unrecoverable.
+REPO_OWNED = {
+    ".git", ".gitignore", ".gitattributes", "README.md", "sync-from-local.py",
+    "_project", "CLAUDE.md", "CHANGELOG.md", ".mcp.json", ".mcp-probe", ".old-website-ftp",
+}
+
+
+def repo_owned(name: str) -> bool:
+    # Forwarded client e-mails (*.eml) are kept beside the repo, never in the plugin.
+    return name in REPO_OWNED or name.lower().endswith(".eml")
+
 
 # A credential literal in source. Matches an assignment, not a variable name, so
 # `$settings->passkey_source()` and `OY_YF_PASSKEY_LIVE` do not trip it.
@@ -48,12 +60,12 @@ def fail(message: str) -> None:
 def mirror(src: Path, repo: Path) -> None:
     """Make repo match src, so a file deleted upstream disappears here too."""
     for entry in repo.iterdir():
-        if entry.name in REPO_OWNED:
+        if repo_owned(entry.name):
             continue
         shutil.rmtree(entry) if entry.is_dir() else entry.unlink()
 
     for entry in src.iterdir():
-        if entry.name in REPO_OWNED:
+        if repo_owned(entry.name):
             continue
         target = repo / entry.name
         shutil.copytree(entry, target) if entry.is_dir() else shutil.copy2(entry, target)

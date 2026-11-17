@@ -56,3 +56,14 @@ desktop.ini
 # Keep it local; never commit credentials to this repository.
 .mcp.json
 .mcp-probe/
+
+# Local-only material with client credentials — NEVER commit or push.
+# Forwarded client e-mails embed wp-admin passwords; the FTP note holds
+# old-host login details.
+*.eml
+/.old-website-ftp
+
+# Local project workspace for the Otium Yachts site: notes, client docs,
+# credentials (_project/access.md) and the work log. Never commit or deploy.
+/_project/
+/CHANGELOG.md
