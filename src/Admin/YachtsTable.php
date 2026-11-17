@@ -14,8 +14,8 @@ if (!class_exists('\WP_List_Table')) {
 
 /**
  * The working screen: every yacht the feed offers (433 rows), server-side
- * paginated. Publishing is available here as an explicit row action and nowhere
- * else.
+ * paginated. Publishing happens here through the Visible switch, which is
+ * the same thing as publishing (Write\Visibility).
  */
 final class YachtsTable extends \WP_List_Table
 {
@@ -37,7 +37,7 @@ final class YachtsTable extends \WP_List_Table
         Menu::open_page(
             Menu::SLUG_YACHTS,
             __('Yachts', 'otium-yachtfolio-sync'),
-            __('Every yacht the feed offers. Nothing here publishes automatically.', 'otium-yachtfolio-sync'),
+            __('Every yacht the feed offers. Switching Visible on publishes a yacht; switching it off moves it back to draft.', 'otium-yachtfolio-sync'),
             $this->hero_actions()
         );
 
@@ -86,7 +86,7 @@ final class YachtsTable extends \WP_List_Table
         $steps = [
             __('Text is imported for every yacht already', 'otium-yachtfolio-sync'),
             __('Press "Get N photos" in the Data column for the ones you sell', 'otium-yachtfolio-sync'),
-            __('Check the yacht, then Publish', 'otium-yachtfolio-sync'),
+            __('Check the yacht, then switch Visible on to publish it', 'otium-yachtfolio-sync'),
         ];
 
         echo '<div class="oy-guide">';
@@ -113,8 +113,9 @@ final class YachtsTable extends \WP_List_Table
             'post'       => __('WordPress post', 'otium-yachtfolio-sync'),
             // The two switches are the whole import model: Selected decides
             // whether a pass touches the yacht at all, Visible decides whether
-            // its media is fetched and whether it may be published. They sit
-            // together, in that order, because that is the order they apply in.
+            // it is published (and therefore whether its media is fetched).
+            // They sit together, in that order, because that is the order they
+            // apply in.
             'selected'   => __('Selected', 'otium-yachtfolio-sync'),
             'visible'    => __('Visible', 'otium-yachtfolio-sync'),
             'status'     => __('Sync', 'otium-yachtfolio-sync'),
@@ -146,20 +147,16 @@ final class YachtsTable extends \WP_List_Table
         return [
             'select'    => __('Mark selected for sync', 'otium-yachtfolio-sync'),
             'unselect'  => __('Remove from sync selection', 'otium-yachtfolio-sync'),
-            'show'      => __('Set visible', 'otium-yachtfolio-sync'),
-            'hide'      => __('Set hidden', 'otium-yachtfolio-sync'),
+            'show'      => __('Set visible (publish)', 'otium-yachtfolio-sync'),
+            'hide'      => __('Set hidden (move back to draft)', 'otium-yachtfolio-sync'),
             // Setting Visible does not fetch anything on its own; the media is
             // only pulled on the next pass. Doing both in one action is the
             // difference between one step and two for a batch of yachts.
-            'show_sync' => __('Set visible and sync now', 'otium-yachtfolio-sync'),
+            'show_sync' => __('Set visible (publish) and sync now', 'otium-yachtfolio-sync'),
             'sync'      => __('Sync now', 'otium-yachtfolio-sync'),
             // No bulk dry run: it fetched a brochure per yacht and reported only
             // a count, discarding the diff that is the entire point. The preview
             // lives on the row action, where the diff is actually shown.
-            // Publishing in bulk still honours the Visible gate; anything not
-            // visible is refused and reported rather than quietly published.
-            'publish'   => __('Publish', 'otium-yachtfolio-sync'),
-            'unpublish' => __('Move back to draft', 'otium-yachtfolio-sync'),
         ];
     }
 
@@ -188,9 +185,9 @@ final class YachtsTable extends \WP_List_Table
             // Imported but short of at least one scored section — the yachts
             // worth re-running before anything gets published.
             'incomplete' => __('Incomplete data', 'otium-yachtfolio-sync'),
-            // Public on the site while the Visible gate is closed, so their
-            // media is never imported. Filter, select all, then fix in bulk.
-            'ungated'    => __('Live but not visible', 'otium-yachtfolio-sync'),
+            // Public on the site while marked hidden — a disagreement left by a
+            // change outside WordPress. Filter, select all, then fix in bulk.
+            'ungated'    => __('Live but marked hidden', 'otium-yachtfolio-sync'),
             'attention'  => __('Needs attention', 'otium-yachtfolio-sync'),
             'error'      => __('Errors', 'otium-yachtfolio-sync'),
             'stale'      => __('Stale', 'otium-yachtfolio-sync'),
@@ -325,6 +322,16 @@ final class YachtsTable extends \WP_List_Table
             );
         }
 
+        // Next to View: the yacht editor, where the fields are actually changed.
+        $editUrl = !empty($item['post_id']) ? get_edit_post_link((int) $item['post_id'], 'raw') : null;
+        if ($editUrl) {
+            $actions['edit'] = sprintf(
+                '<a href="%s">%s</a>',
+                esc_url($editUrl),
+                esc_html__('Edit', 'otium-yachtfolio-sync')
+            );
+        }
+
         $actions += [
             'sync'    => $this->action_link($yfId, 'oy_yf_sync_one', __('Sync', 'otium-yachtfolio-sync')),
             'dry_run' => $this->action_link($yfId, 'oy_yf_dry_run', __('Dry run', 'otium-yachtfolio-sync')),
@@ -336,12 +343,7 @@ final class YachtsTable extends \WP_List_Table
             // empty window on the 423 that have never been imported.
             $actions['json'] = $this->action_link($yfId, 'oy_yf_show_json', __('Show JSON', 'otium-yachtfolio-sync'));
 
-            $post = get_post((int) $item['post_id']);
-            if ($post && $post->post_status === 'publish') {
-                $actions['unpublish'] = $this->action_link($yfId, 'oy_yf_unpublish', __('Unpublish', 'otium-yachtfolio-sync'));
-            } else {
-                $actions['publish'] = $this->action_link($yfId, 'oy_yf_publish', __('Publish', 'otium-yachtfolio-sync'));
-            }
+            // No Publish/Unpublish link: the Visible switch is that action.
             $actions['unlink'] = $this->action_link($yfId, 'oy_yf_unlink', __('Unlink', 'otium-yachtfolio-sync'));
         }
 
@@ -407,19 +409,18 @@ final class YachtsTable extends \WP_List_Table
             $on,
             __('Visible', 'otium-yachtfolio-sync'),
             __('Hidden', 'otium-yachtfolio-sync'),
-            __('Media is imported and the yacht may be published.', 'otium-yachtfolio-sync'),
-            __('No media is imported and the yacht must not be published.', 'otium-yachtfolio-sync')
+            __('Published on the website; its media is imported.', 'otium-yachtfolio-sync'),
+            __('Not on the website (draft). Switch on to publish.', 'otium-yachtfolio-sync')
         );
 
-        // A published yacht with the gate closed is the contradiction the table
-        // used to show silently: the Post column says "publish" while this one
-        // says "Hidden". They mean different things, but the consequence is
-        // real — the page is live and its gallery will never be fetched.
+        // Visible and published are kept in step by Write\Visibility, so this
+        // only shows when a status was changed outside WordPress (a database
+        // import, a direct SQL write).
         if (!$on && get_post_status($postId) === 'publish') {
             $control .= sprintf(
                 '<span class="oy-cell__meta"><span class="oy-pill oy-pill--warn" title="%s">%s</span></span>',
-                esc_attr__('This yacht is public but the Visible gate is off, so no media is imported for it. Switch Visible on, then run a sync.', 'otium-yachtfolio-sync'),
-                esc_html__('live, ungated', 'otium-yachtfolio-sync')
+                esc_attr__('This yacht is public but marked hidden. Switch Visible on to mark it as published.', 'otium-yachtfolio-sync'),
+                esc_html__('live, marked hidden', 'otium-yachtfolio-sync')
             );
         }
 

@@ -413,7 +413,7 @@ final class Orchestrator
             $protectedCount = (int) ($writeReport['meta_protected'] ?? 0);
             if ($protectedCount > 0) {
                 $result['protected_fields'] = $writeReport['protected_fields'] ?? [];
-                $result['message'] .= sprintf('; kept %d hand-entered field(s)', $protectedCount);
+                $result['message'] .= sprintf('; kept %d field(s) edited in WordPress', $protectedCount);
                 $runs->bump($runId, ['attention' => 1]);
             }
 
@@ -568,6 +568,42 @@ final class Orchestrator
     {
         $result = $this->sync_yacht($yfId, ['dry_run' => true, 'trigger' => 'manual']);
         return is_array($result['diff']) ? $result['diff'] : [];
+    }
+
+    /**
+     * Maps the payload stored at the last sync again, without calling the API.
+     * Used to hand a field back to Yachtfolio the moment an editor empties it,
+     * and — with $asOf = the last sync — to rebuild what that sync wrote.
+     */
+    public function remap(int $postId, ?int $asOf = null): ?\Otium\Yachtfolio\Mapping\MapResult
+    {
+        $yfId = (int) get_post_meta($postId, 'yf_id', true);
+        $row = $yfId > 0 ? $this->plugin->map()->get($yfId) : null;
+        $raw = \Otium\Yachtfolio\Write\Writer::read_raw($postId);
+        $decoded = $raw !== '' ? json_decode($raw, true) : null;
+        if ($row === null || !is_array($decoded)) {
+            return null;
+        }
+        $brochure = is_array($decoded['brochure'] ?? null) ? $decoded['brochure'] : [];
+        $bulk = is_array($decoded['bulk'] ?? null) ? $decoded['bulk'] : null;
+        if ($brochure === [] && $bulk === null) {
+            return null;
+        }
+
+        try {
+            $payload = $this->plugin->normalizer()->from(
+                $yfId,
+                (string) $row['yacht_name'],
+                (string) $row['registry_port'],
+                $brochure,
+                $bulk,
+                (string) $row['last_modified_remote']
+            );
+            return $this->plugin->mapper()->map($payload, $asOf);
+        } catch (\Throwable $e) {
+            $this->plugin->logger()->warn('map', 'remap from the stored payload failed: ' . Secrets::scrub($e->getMessage()), ['post_id' => $postId], $yfId);
+            return null;
+        }
     }
 
     /* ------------------------------------------------------------------ */

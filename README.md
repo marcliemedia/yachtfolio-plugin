@@ -2,15 +2,16 @@
 
 One-way sync from the [Yachtfolio](https://www.yachtfolio.com/) Public API (MYBA yacht data feed) into an existing WordPress `yacht` post type.
 
-**Version 0.3.1** · WordPress ≥ 6.4 · PHP ≥ 8.1 · proprietary, all rights reserved.
+**Version 0.18.0** · WordPress ≥ 6.4 · PHP ≥ 8.1 · proprietary, all rights reserved.
 
 ## What it does, and what it refuses to do
 
 | | |
 |---|---|
 | Direction | **Read-only against Yachtfolio.** Nothing is ever written back to the vendor. |
-| Publishing | **Never publishes on its own.** An imported yacht arrives as a draft; a human ticks *Visible*. |
-| Hand-entered content | **Protected.** With `write_mode = fill_empty_only` the feed only fills fields that are empty. Refusals are logged, never silent. |
+| Publishing | **Never publishes on its own.** An imported yacht arrives as a draft; a human switches *Visible* on, which publishes it (Visible and published are one decision). |
+| Edits in WordPress | **Win, per field, with nothing to configure.** Yachtfolio only pre-fills. The sync updates a field only while it still holds the value the sync last wrote. A field edited in WordPress — changed or emptied — is kept, shown exactly as left and listed on the yacht as *Edited in WordPress*; ticking it there takes the Yachtfolio value back. Only High (summer season max) and Low (summer season min) are pre-filled — Yachtfolio has no shoulder rate and no season periods, so nothing is invented for them. Shoulder, Summer and Winter rates are typed in WordPress only. The yacht page shows these rate boxes; the Yachtfolio season rows (`yf_rates`) are stored but never shown. |
+| Hand-entered content | **Protected.** On a yacht typed in by hand the feed only fills fields that are empty. Refusals are logged, never silent. |
 | Galleries | A yacht whose gallery was curated by hand keeps it. Feed yachts write normally. |
 | Rate limit | Self-throttling at 600 calls per 300 s, under the vendor's documented 800. |
 
@@ -78,7 +79,7 @@ Six screens under the top-level **Yachtfolio** menu:
 | Screen | Slug | Purpose |
 |---|---|---|
 | Dashboard | `oy-yf-dashboard` | connection, passkey source, budget, recent errors |
-| Yachts | `oy-yf-yachts` | the catalogue; sync, dry run, publish, view, show JSON per yacht |
+| Yachts | `oy-yf-yachts` | the catalogue; sync, dry run, Visible (= publish), view, show JSON per yacht |
 | Mapping | `oy-yf-mapping` | field and taxonomy mapping |
 | Logs | `oy-yf-logs` | every run, every refusal |
 | Tools | `oy-yf-tools` | one-off maintenance |
@@ -132,7 +133,8 @@ uninstall.php   honours `remove_data_on_uninstall`, default false
 ## Notes for whoever picks this up next
 
 - **Ownership is one accessor, not a rule repeated per caller.** `Ownership::origin_of()` decides whether the feed may write a given post. Adding a second code path that bypasses it is how hand-entered data gets destroyed.
-- **`yf_visible` is a human curation flag**, set from the admin only. The importer reads it and never sets it.
+- **`yf_visible` is a human decision and means published.** `Write/Visibility.php` keeps it and `post_status` in step in both directions, on the write itself. The importer never sets it except to initialise a new draft as hidden.
+- **Edit tracking lives in `Write/EditTracker.php`.** `yf_feed_values` holds a fingerprint of the value Yachtfolio last offered per field; a field whose normalised value still matches is feed-owned, anything else — an emptied field included — was edited in WordPress (`yf_protected_fields`). `Writer::decide()` applies the rule on sync, `EditTracker::on_saved()` on every save (so the page switches immediately); only fields ticked under "Edited in WordPress" are refilled from the stored payload. Normalisation matters: JetEngine re-saves an untouched `&` as `&amp;`. After a database import without the fingerprints, run `wp otium-yf baseline`. Any script writing yacht fields must wrap the write in `EditTracker::suspend(true/false)`.
 - **Amenity switchers are mapped by phrase**, in `Mapping/AmenityText.php`. Adding a phrase there makes a switcher writable by the feed — do not widen that set anywhere else.
 - **Secrets are scrubbed from logs** by `Support/Secrets`. Any new log call that interpolates a request URL must go through it.
 - The vendor returns **HTTP 200 with an `errors[]` body** on failure. Never trust the status code alone.

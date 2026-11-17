@@ -249,6 +249,39 @@ final class Commands
     }
 
     /**
+     * Builds the edit-tracking fingerprints for feed yachts that have none —
+     * after an upgrade from a version without them, or after a database
+     * import. Reads the stored payload only; no API calls, no field writes.
+     *
+     * ## OPTIONS
+     *
+     * [--post=<post_id>]
+     * [--dry-run]
+     */
+    public function baseline(array $args, array $assoc): void
+    {
+        global $wpdb;
+        $ids = isset($assoc['post'])
+            ? [(int) $assoc['post']]
+            : array_map('intval', $wpdb->get_col(
+                "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = 'yf_origin' AND meta_value = 'feed'"
+            ));
+
+        $tracker = $this->plugin()->editTracker();
+        $dryRun = isset($assoc['dry-run']);
+        $counts = [];
+        foreach ($ids as $postId) {
+            $result = $tracker->baseline($postId, $dryRun);
+            $counts[$result['status']] = ($counts[$result['status']] ?? 0) + 1;
+            if (in_array($result['status'], ['compared', 'trusted'], true) && $result['held'] !== []) {
+                WP_CLI::log(sprintf('%d %s: edited in WordPress: %s', $postId, get_the_title($postId), implode(', ', $result['held'])));
+            }
+        }
+        ksort($counts);
+        WP_CLI::success(implode('  ', array_map(static fn(string $k, int $n): string => "$k=$n", array_keys($counts), $counts)));
+    }
+
+    /**
      * Links existing yacht posts to feed rows.
      *
      * ## OPTIONS
@@ -381,7 +414,7 @@ final class Commands
         }
     }
 
-    /** Yachts where the feed disagreed with hand-entered content. */
+    /** Yachts keeping at least one field edited in WordPress. */
     private function count_protected_yachts(): int
     {
         global $wpdb;

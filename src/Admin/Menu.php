@@ -120,9 +120,12 @@ final class Menu
         return $map->count_detail_unavailable()
             + $map->count_authorisation_lost()
             + $map->count(['status' => YachtMapStore::STATUS_ERROR])
-            // Published with the Visible gate closed: not an error, but it is a
-            // decision nobody has taken yet, which is what this tab is for.
-            + $map->count(['published_not_visible' => true]);
+            // Published but marked hidden: Visible and published disagree,
+            // which only happens after a change outside WordPress.
+            + $map->count(['published_not_visible' => true])
+            // Yachtfolio changed a field the editor had edited: theirs is still
+            // shown, but it may be out of date.
+            + count(AlertsScreen::newer_feed_values());
     }
 
     public function add_pages(): void

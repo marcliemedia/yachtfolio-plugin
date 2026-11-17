@@ -24,6 +24,8 @@ use Otium\Yachtfolio\Sync\Linker;
 use Otium\Yachtfolio\Sync\Orchestrator;
 use Otium\Yachtfolio\Sync\RunStore;
 use Otium\Yachtfolio\Sync\YachtMapStore;
+use Otium\Yachtfolio\Write\EditTracker;
+use Otium\Yachtfolio\Write\Visibility;
 use Otium\Yachtfolio\Write\Writer;
 use Otium\Yachtfolio\Update\GitHubUpdater;
 use Otium\Yachtfolio\Media\ImageSizes;
@@ -68,6 +70,14 @@ final class Plugin
         // resolves templates, on the front end and in the builder alike.
         $this->templateRouter()->register();
 
+        // Visible and published are one decision. Outside is_admin(): status
+        // also changes through WP-CLI, REST and cron.
+        $this->visibility()->register();
+
+        // Edits made in WordPress win over the feed, per field. Outside
+        // is_admin(): yachts are also saved through REST and WP-CLI.
+        $this->editTracker()->register();
+
         // Bricks dynamic tags for the repeater fields. Scalars need nothing —
         // Bricks resolves {cf_<meta_key>} for any key — but {cf_yf_rates}
         // would implode 14 rows into one line, so those five get real tags.
@@ -105,7 +115,8 @@ final class Plugin
             'yf_synced_at'      => 'string',
             'yf_sync_status'    => 'string',
             'yf_visible'        => 'string',
-            'yf_locked_fields'  => 'string',
+            // Fingerprints of the values Yachtfolio last offered (EditTracker).
+            'yf_feed_values'    => 'string',
             'yf_type_derivable' => 'string',
             // Presence markers for template conditions: the count when the
             // yacht has that data, an empty string when it does not, so the
@@ -260,6 +271,16 @@ final class Plugin
     public function dynamicTags(): DynamicTags
     {
         return $this->service(DynamicTags::class, fn(): DynamicTags => new DynamicTags());
+    }
+
+    public function visibility(): Visibility
+    {
+        return $this->service(Visibility::class, static fn(): Visibility => new Visibility());
+    }
+
+    public function editTracker(): EditTracker
+    {
+        return $this->service(EditTracker::class, fn(): EditTracker => new EditTracker($this));
     }
 
     public function dir(): string

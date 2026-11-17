@@ -212,13 +212,12 @@ final class YachtMapStore
             $params[] = \Otium\Yachtfolio\Write\DataScore::MAX;
         }
         /**
-         * Live on the site while the Visible gate is off.
+         * Live on the site while marked hidden.
          *
-         * Visible is what allows media to be imported and publishing to be
-         * offered, so a published yacht with the gate closed is a contradiction:
-         * the page is public but its gallery will never be fetched. Both facts
-         * live outside this table, hence the two EXISTS clauses rather than a
-         * column of our own — this is a report, not a hot path.
+         * Visible means published (Write\Visibility keeps them in step), so
+         * this only matches after a status changed outside WordPress. Both
+         * facts live outside this table, hence the two EXISTS clauses rather
+         * than a column of our own — this is a report, not a hot path.
          */
         if (!empty($args['published_not_visible'])) {
             // The outer column MUST be qualified: inside the postmeta subquery an

@@ -18,8 +18,6 @@ final class Ajax
         'oy_yf_fetch_media',
         'oy_yf_toggle_visible',
         'oy_yf_toggle_selected',
-        'oy_yf_publish',
-        'oy_yf_unpublish',
         'oy_yf_link',
         'oy_yf_unlink',
         'oy_yf_bulk',
@@ -57,8 +55,6 @@ final class Ajax
                 'oy_yf_fetch_media'       => $this->fetch_media($yfId),
                 'oy_yf_toggle_visible'    => $this->toggle_visible($yfId),
                 'oy_yf_toggle_selected'   => $this->toggle_selected($yfId),
-                'oy_yf_publish'           => $this->set_status($yfId, 'publish'),
-                'oy_yf_unpublish'         => $this->set_status($yfId, 'draft'),
                 'oy_yf_link'              => $this->link($yfId),
                 'oy_yf_unlink'            => $this->unlink($yfId),
                 'oy_yf_bulk'              => $this->bulk(),
@@ -133,13 +129,11 @@ final class Ajax
      * Fetches a yacht's photos on demand.
      *
      * The import brings text for every yacht but no images, because images are
-     * the expensive part. Until now the only way to get them was to know that
-     * the Visible switch also gates media — which the label does not say. This
-     * is the explicit action: one click, states what it will do, and reports
-     * what it did.
+     * the expensive part. This is the explicit action: one click, states what
+     * it will do, and reports what it did.
      *
-     * Opening the gate is part of the operation, not a separate step the admin
-     * has to discover.
+     * It does not touch Visible: since Visible means published, fetching
+     * photos to review a draft must not put that draft on the website.
      */
     private function fetch_media(int $yfId): void
     {
@@ -150,8 +144,6 @@ final class Ajax
                 'message' => __('Import this yacht first — there is no post to attach photos to.', 'otium-yachtfolio-sync'),
             ]);
         }
-
-        update_post_meta($postId, 'yf_visible', 'true');
 
         $result = $this->plugin->orchestrator()->sync_media($yfId);
 
@@ -190,13 +182,14 @@ final class Ajax
         }
 
         $on = (string) get_post_meta($postId, 'yf_visible', true) !== 'true';
+        // Write\Visibility publishes or unpublishes on this write.
         update_post_meta($postId, 'yf_visible', $on ? 'true' : 'false');
 
         wp_send_json_success([
             'visible' => $on,
-            'message' => $on
-                ? __('Marked visible.', 'otium-yachtfolio-sync')
-                : __('Marked hidden.', 'otium-yachtfolio-sync'),
+            'message' => get_post_status($postId) === 'publish'
+                ? __('Visible — published on the website.', 'otium-yachtfolio-sync')
+                : __('Hidden — moved back to draft.', 'otium-yachtfolio-sync'),
         ]);
     }
 
@@ -211,32 +204,6 @@ final class Ajax
             'message'  => $on
                 ? __('Added to the sync selection.', 'otium-yachtfolio-sync')
                 : __('Removed from the sync selection.', 'otium-yachtfolio-sync'),
-        ]);
-    }
-
-    /** The only place a post status ever changes, and always by explicit click. */
-    private function set_status(int $yfId, string $status): void
-    {
-        $row = $this->require_yacht($yfId);
-        $postId = (int) ($row['post_id'] ?? 0);
-        if ($postId <= 0) {
-            wp_send_json_error(['message' => __('Link the yacht to a post first.', 'otium-yachtfolio-sync')]);
-        }
-
-        if ($status === 'publish' && (string) get_post_meta($postId, 'yf_visible', true) !== 'true') {
-            wp_send_json_error(['message' => __('Mark the yacht visible before publishing it.', 'otium-yachtfolio-sync')]);
-        }
-
-        $updated = wp_update_post(['ID' => $postId, 'post_status' => $status], true);
-        if (is_wp_error($updated)) {
-            wp_send_json_error(['message' => $updated->get_error_message()]);
-        }
-
-        wp_send_json_success([
-            'post_status' => $status,
-            'message'     => $status === 'publish'
-                ? __('Published.', 'otium-yachtfolio-sync')
-                : __('Moved to draft.', 'otium-yachtfolio-sync'),
         ]);
     }
 
@@ -291,6 +258,7 @@ final class Ajax
 
                 case 'show':
                 case 'hide':
+                    // Visible means published; Write\Visibility applies the status.
                     if ($postId <= 0) {
                         $skipped[] = sprintf(
                             /* translators: %s: yacht name */
@@ -323,35 +291,6 @@ final class Ajax
                     if ($result['status'] === 'error') {
                         $messages[] = sprintf('%s: %s', (string) $row['yacht_name'], (string) $result['message']);
                     }
-                    break;
-
-                case 'publish':
-                case 'unpublish':
-                    if ($postId <= 0) {
-                        $skipped[] = sprintf(
-                            /* translators: %s: yacht name */
-                            __('%s: not linked to a post', 'otium-yachtfolio-sync'),
-                            (string) $row['yacht_name']
-                        );
-                        break;
-                    }
-                    // Same rule the single-row action enforces: Visible is the
-                    // gate in front of publishing, and a bulk action must not be
-                    // a way around it.
-                    if ($operation === 'publish'
-                        && (string) get_post_meta($postId, 'yf_visible', true) !== 'true') {
-                        $skipped[] = sprintf(
-                            /* translators: %s: yacht name */
-                            __('%s: not marked visible', 'otium-yachtfolio-sync'),
-                            (string) $row['yacht_name']
-                        );
-                        break;
-                    }
-                    wp_update_post([
-                        'ID'          => $postId,
-                        'post_status' => $operation === 'publish' ? 'publish' : 'draft',
-                    ]);
-                    $done++;
                     break;
 
                 case 'sync':

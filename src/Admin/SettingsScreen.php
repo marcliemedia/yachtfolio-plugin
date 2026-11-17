@@ -185,14 +185,14 @@ final class SettingsScreen
         /* ---- content protection ---- */
         $this->open_card(
             __('Content protection', 'otium-yachtfolio-sync'),
-            __('What happens when the feed disagrees with a yacht typed in by hand.', 'otium-yachtfolio-sync')
+            __('What happens when the feed disagrees with a value edited in WordPress.', 'otium-yachtfolio-sync')
         );
-        $this->select_row($s, 'write_mode', __('When the feed disagrees with a hand-entered yacht', 'otium-yachtfolio-sync'), [
-            'fill_empty_only'    => __('Keep what is on the site, only fill empty fields (recommended)', 'otium-yachtfolio-sync'),
+        $this->select_row($s, 'write_mode', __('When the feed disagrees with an edit', 'otium-yachtfolio-sync'), [
+            'fill_empty_only'    => __('Keep what was edited in WordPress (recommended)', 'otium-yachtfolio-sync'),
             'feed_authoritative' => __('Let the feed overwrite everything', 'otium-yachtfolio-sync'),
         ]);
         echo '<tr><th>' . esc_html__('How it works', 'otium-yachtfolio-sync') . '</th><td class="description">'
-            . esc_html__('Every yacht carries a provenance marker. Yachts typed in by hand are protected: an existing value is never replaced and taxonomy terms are only added, never removed. Yachts created by the importer are owned by the feed and are refreshed normally. Whenever a value is kept instead of overwritten it is recorded on the yacht and in the log, so nothing is hidden.', 'otium-yachtfolio-sync')
+            . esc_html__('The sync remembers what it last wrote into every field. A field still holding that value is updated from Yachtfolio; a field edited in WordPress — changed or emptied — is kept, shown on the website exactly as left and listed on the yacht as "Edited in WordPress", where it can be handed back to Yachtfolio. On yachts typed in by hand the feed only fills empty fields and only adds taxonomy terms. Every kept value is recorded on the yacht and in the log.', 'otium-yachtfolio-sync')
             . '</td></tr>';
         $this->close_card();
 
@@ -213,15 +213,11 @@ final class SettingsScreen
         /* ---- prices ---- */
         $this->open_card(
             __('Prices', 'otium-yachtfolio-sync'),
-            __('How seasonal rates from the feed are turned into the three displayed prices.', 'otium-yachtfolio-sync')
+            __('How seasonal rates from the feed pre-fill the displayed prices.', 'otium-yachtfolio-sync')
         );
-        $this->select_row($s, 'shoulder_source', __('Shoulder season amount', 'otium-yachtfolio-sync'), [
-            'next_season_min' => __('next season minimum', 'otium-yachtfolio-sync'),
-            'next_season_max' => __('next season maximum', 'otium-yachtfolio-sync'),
-        ]);
         $this->text_row($s, 'currency_locale', __('Currency locale', 'otium-yachtfolio-sync'), 'small-text');
         echo '<tr><th>' . esc_html__('Rule', 'otium-yachtfolio-sync') . '</th><td class="description">'
-            . esc_html__('High = current season maximum, Low = current season minimum, Shoulder = next season. The currency always comes from the feed row; a missing amount renders empty, never 0.', 'otium-yachtfolio-sync')
+            . esc_html__('High = summer season maximum, Low = summer season minimum (the earliest summer season that has not ended). Yachtfolio has no shoulder rate and no high/low periods, so Shoulder, the Summer / Winter rates and every season period are left to the editors. The currency always comes from the feed row; a missing amount renders empty, never 0. The yacht page shows only these rate boxes, never the Yachtfolio season rows.', 'otium-yachtfolio-sync')
             . '</td></tr>';
         $this->close_card();
 
@@ -395,7 +391,6 @@ final class SettingsScreen
         } else {
             $patch[TemplateRouter::OPTION_KEY] = $tpl;
         }
-        $patch['shoulder_source'] = ($post['shoulder_source'] ?? '') === 'next_season_max' ? 'next_season_max' : 'next_season_min';
         $patch['currency_locale'] = sanitize_key((string) ($post['currency_locale'] ?? 'hr'));
 
         $galleries = [];

@@ -64,8 +64,9 @@ final class Settings
             'import_crew_photos'   => true,
             'set_featured_image'   => true,     // only when the post has none
             'create_terms'         => true,
-            // 2026-08-30 client mandate: hand-entered yachts are never overwritten.
-            // fill_empty_only = a manual yacht only gets values written into EMPTY fields.
+            // fill_empty_only = values edited in WordPress are kept, per field
+            //   (Write\EditTracker); hand-entered yachts only get EMPTY fields filled
+            //   (2026-08-30 mandate). Key name kept so stored settings stay valid.
             // feed_authoritative = the pre-mandate behaviour; the feed rewrites everything.
             'write_mode'           => 'fill_empty_only',
             // Bricks single template used for feed-created yachts. 0 = off,
@@ -75,7 +76,6 @@ final class Settings
             'log_retention_days'   => 14,   // purged daily by Sync\Jobs::handle_purge()
             'brochure_scenario'    => 'auto',   // auto|manual|text (API treats them alike)
             'detail_scope'         => 'selected', // selected|all — selected = linked/selected/visible only
-            'shoulder_source'      => 'next_season_min',
             'currency_locale'      => 'hr',
             'remove_data_on_uninstall' => false,
             // GitHub release updates. The token is only needed while the
@@ -159,19 +159,5 @@ final class Settings
     public function masked_passkey(?string $mode = null): string
     {
         return Secrets::mask($this->passkey($mode));
-    }
-
-    /** @return array<string,int> season kind => season offset rule */
-    public function season_period_map(): array
-    {
-        $map = $this->get('season_period_map');
-        if (is_array($map) && $map !== []) {
-            return $map;
-        }
-        return [
-            'high'     => 0,  // current season, max_rate
-            'low'      => 0,  // current season, min_rate
-            'shoulder' => 1,  // next season, min_rate
-        ];
     }
 }

@@ -29,7 +29,11 @@ final class Mapper
     ) {
     }
 
-    public function map(YachtPayload $p): MapResult
+    /**
+     * @param int|null $asOf map as if it were this moment (the derived season
+     *                       boxes depend on the date); null = now
+     */
+    public function map(YachtPayload $p, ?int $asOf = null): MapResult
     {
         $report = new MappingReport();
         $meta = [];
@@ -138,34 +142,24 @@ final class Mapper
         }
 
         /* ---------- prices ---------- */
-        $display = RatesTable::display($p->rates, $this->seasons, $this->settings);
+        $display = RatesTable::display($p->rates, $this->seasons, $this->settings, $asOf);
         if ($p->rates === []) {
             $flags[] = self::FLAG_NO_PRICES;
         } else {
             // Rates are feed-owned end to end, so an empty amount is a
-            // deliberate "the feed has no price" and does overwrite.
-            foreach (['high', 'low', 'shoulder'] as $period) {
-                $meta["{$period}_season_rate"] = $display[$period]['rate'];
-            }
-
-            // High and low are two amounts of the SAME season, so they share one
-            // date window. Writing that window into both fields would replace a
-            // meaningful editorial split ("Jun 22nd – Aug 27th" vs "all other
-            // dates") with two identical strings, so only the high period gets
-            // it; the low window stays editor-owned unless its season differs.
-            $meta['high_season_time'] = $display['high']['time'];
-            if ($display['low']['season_id'] !== $display['high']['season_id']) {
-                $meta['low_season_time'] = $display['low']['time'];
-            }
-            if ($display['shoulder']['season_id'] > 0
-                && $display['shoulder']['season_id'] !== $display['high']['season_id']) {
-                $meta['shoulder_season_time'] = $display['shoulder']['time'];
+            // deliberate "the feed has no price" and does overwrite. Only High
+            // and Low exist in Yachtfolio; Shoulder and every season period are
+            // left to the editors (see RatesTable::display()).
+            foreach (['high', 'low'] as $period) {
+                $meta["{$period}_season_rate"] = $display[$period];
             }
 
             $notes = $this->price_notes($p);
             if ($notes !== null) {
-                foreach (['high', 'low', 'shoulder'] as $period) {
-                    $meta["{$period}_season_price_notes"] = $notes;
+                foreach (['high', 'low'] as $period) {
+                    if ($display[$period] !== '') {
+                        $meta["{$period}_season_price_notes"] = $notes;
+                    }
                 }
             }
             $meta['yf_rates'] = RatesTable::repeater($p->rates, $this->seasons);

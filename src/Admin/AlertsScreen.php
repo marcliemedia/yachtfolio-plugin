@@ -40,6 +40,7 @@ final class AlertsScreen
         $errors     = $map->count(['status' => YachtMapStore::STATUS_ERROR]);
         $stale      = $map->count(['status' => YachtMapStore::STATUS_STALE]);
         $ungated    = $map->count(['published_not_visible' => true]);
+        $newer      = self::newer_feed_values();
 
         Menu::open_page(
             Menu::SLUG_ALERTS,
@@ -67,9 +68,9 @@ final class AlertsScreen
             $errors > 0 ? 'bad' : ''
         );
         $this->stat(
-            __('Live but not visible', 'otium-yachtfolio-sync'),
+            __('Live but marked hidden', 'otium-yachtfolio-sync'),
             $ungated,
-            __('public with no media import', 'otium-yachtfolio-sync'),
+            __('published, Visible off', 'otium-yachtfolio-sync'),
             $ungated > 0 ? 'warn' : ''
         );
         $this->stat(
@@ -78,9 +79,16 @@ final class AlertsScreen
             __('gone from the feed', 'otium-yachtfolio-sync'),
             $stale > 0 ? 'warn' : ''
         );
+        $this->stat(
+            __('Newer Yachtfolio values', 'otium-yachtfolio-sync'),
+            count($newer),
+            __('for fields edited in WordPress', 'otium-yachtfolio-sync'),
+            $newer !== [] ? 'warn' : ''
+        );
         echo '</div>';
 
         $this->ungated_section($ungated);
+        $this->newer_section($newer);
         $this->attention_section();
         $this->error_log_section();
 
@@ -89,13 +97,12 @@ final class AlertsScreen
 
 
     /**
-     * Published yachts with the Visible gate closed.
+     * Published yachts marked hidden.
      *
-     * Not an error — it is what happens when a yacht was published by hand, or
-     * before the gate existed. It matters because Visible is also what allows
-     * media to be imported, so these pages are live with galleries that will
-     * never be fetched. The fix is a bulk action, so this links straight at it
-     * rather than listing rows that would only be read and not acted on.
+     * Write\Visibility keeps Visible and published in step, so this only
+     * appears when a status was changed outside WordPress (a database import,
+     * a direct SQL write). The fix is a bulk action, so this links straight at
+     * it rather than listing rows that would only be read and not acted on.
      */
     private function ungated_section(int $count): void
     {
@@ -105,7 +112,7 @@ final class AlertsScreen
 
         echo '<section class="oy-section">';
         echo '<div class="oy-section__head"><h2 class="oy-section__title">'
-            . esc_html__('Live but not visible', 'otium-yachtfolio-sync') . '</h2></div>';
+            . esc_html__('Live but marked hidden', 'otium-yachtfolio-sync') . '</h2></div>';
 
         echo '<div class="oy-card oy-card--flag"><div class="oy-card__body">';
         printf(
@@ -113,8 +120,8 @@ final class AlertsScreen
             esc_html(sprintf(
                 /* translators: %d: number of yachts */
                 _n(
-                    '%d published yacht has the Visible gate switched off.',
-                    '%d published yachts have the Visible gate switched off.',
+                    '%d published yacht is marked hidden.',
+                    '%d published yachts are marked hidden.',
                     $count,
                     'otium-yachtfolio-sync'
                 ),
@@ -123,11 +130,11 @@ final class AlertsScreen
         );
         printf(
             '<p class="description">%s</p>',
-            esc_html__('Their pages are public, but because Visible also gates media import, no gallery is ever fetched for them. Nothing is wrong with the content already on the page — it simply will not gain images.', 'otium-yachtfolio-sync')
+            esc_html__('Visible means published, so these two disagree — usually after a database import. Until they agree, no gallery is fetched for these yachts.', 'otium-yachtfolio-sync')
         );
         printf(
             '<p class="description">%s</p>',
-            esc_html__('To fix: open the filtered list, tick the yachts you want public with media, and apply "Set visible and sync now". Leave any yacht you would rather keep without a gallery.', 'otium-yachtfolio-sync')
+            esc_html__('To fix: open the filtered list, tick the yachts that should stay on the website, and apply "Set visible (publish) and sync now". Apply "Set hidden (move back to draft)" to any that should come off.', 'otium-yachtfolio-sync')
         );
         printf(
             '<p><a class="oy-btn oy-btn--primary" href="%s">%s</a></p>',
@@ -136,6 +143,56 @@ final class AlertsScreen
         );
         echo '</div></div></section>';
     }
+
+    /**
+     * Yachts whose edited fields Yachtfolio has since changed.
+     *
+     * The edit still wins — that is the rule — but an edited price can go
+     * stale when Yachtfolio publishes next season's. This is the one moment
+     * the editor has something to decide, so it is surfaced here instead of
+     * being asked up front on every yacht.
+     *
+     * @return array<int,array{post_id:int,fields:string}>
+     */
+    public static function newer_feed_values(): array
+    {
+        global $wpdb;
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT m.post_id, m.meta_value AS fields FROM {$wpdb->postmeta} m
+             JOIN {$wpdb->posts} p ON p.ID = m.post_id AND p.post_type = 'yacht' AND p.post_status <> 'trash'
+             WHERE m.meta_key = %s AND m.meta_value <> '' ORDER BY p.post_title",
+            \Otium\Yachtfolio\Write\EditTracker::FEED_CHANGED_META
+        ), ARRAY_A);
+        return array_map(static fn(array $r): array => ['post_id' => (int) $r['post_id'], 'fields' => (string) $r['fields']], $rows ?: []);
+    }
+
+    /** @param array<int,array{post_id:int,fields:string}> $rows */
+    private function newer_section(array $rows): void
+    {
+        if ($rows === []) {
+            return;
+        }
+        echo '<section class="oy-section">';
+        echo '<div class="oy-section__head"><h2 class="oy-section__title">'
+            . esc_html__('Newer Yachtfolio values for edited fields', 'otium-yachtfolio-sync') . '</h2></div>';
+        echo '<div class="oy-card oy-card--flag"><div class="oy-card__body">';
+        printf(
+            '<p class="description">%s</p>',
+            esc_html__('These fields were edited in WordPress, so the website keeps showing the edited value. Yachtfolio has since sent a different one. Open the yacht: keep your value, or tick the field under "Edited in WordPress" and press Update to take the Yachtfolio value.', 'otium-yachtfolio-sync')
+        );
+        echo '<table class="oy-table"><thead><tr><th>' . esc_html__('Yacht', 'otium-yachtfolio-sync') . '</th><th>'
+            . esc_html__('Fields', 'otium-yachtfolio-sync') . '</th></tr></thead><tbody>';
+        foreach (array_slice($rows, 0, self::SHOWN) as $row) {
+            printf(
+                '<tr><td><a href="%s">%s</a></td><td><code>%s</code></td></tr>',
+                esc_url((string) get_edit_post_link($row['post_id'])),
+                esc_html((string) get_the_title($row['post_id'])),
+                esc_html(str_replace(',', ', ', $row['fields']))
+            );
+        }
+        echo '</tbody></table></div></div></section>';
+    }
+
     /* ------------------------------------------------------------------ */
 
     private const SHOWN = 25;

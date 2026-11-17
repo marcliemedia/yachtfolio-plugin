@@ -8,12 +8,23 @@ use Otium\Yachtfolio\Reference\SeasonResolver;
 use Otium\Yachtfolio\Support\Settings;
 
 /**
- * Rates: the feed's rows are authoritative, the three legacy display periods
- * are derived from them (decision D2).
+ * Rates: the feed's rows are stored as they come (`yf_rates`); the High / Low
+ * boxes are pre-filled from them.
  *
- * high     = current season max_rate
- * low      = current season min_rate
- * shoulder = next season min_rate (falls back to that season's max_rate)
+ * high = summer season max_rate
+ * low  = summer season min_rate
+ *
+ * "Summer" is the earliest summer season that has not ended (else the latest
+ * one, until next summer is priced), because High and
+ * Low are the Mediterranean summer prices the site sells. Taking whatever
+ * season was current filled both boxes with the winter rate from October to
+ * April (AD Astra, client e-mail 2026-11-05).
+ *
+ * Nothing else is derived. Yachtfolio has no shoulder rate and no high/low
+ * date windows: filling Shoulder from the next season and the time boxes from
+ * the whole season window invented data the client then could not remove
+ * (client e-mail 2026-10-23). Those boxes, and the Summer / Winter rate boxes,
+ * are the editors' alone; the page never prints the feed's season rows.
  *
  * A null amount renders as an empty string, never "0 €", and the currency is
  * always taken from the row — both EUR and USD occur in the live feed.
@@ -22,61 +33,67 @@ final class RatesTable
 {
     /**
      * @param array<int,array{season_id:int,currency:string,min_rate:?float,max_rate:?float,term:string}> $rates
-     * @return array{high:array{rate:string,time:string,season_id:int},low:array{rate:string,time:string,season_id:int},shoulder:array{rate:string,time:string,season_id:int}}
+     * @return array{high:string,low:string}
      */
-    public static function display(array $rates, SeasonResolver $seasons, Settings $settings): array
+    public static function display(array $rates, SeasonResolver $seasons, Settings $settings, ?int $asOf = null): array
     {
-        $empty = ['rate' => '', 'time' => '', 'season_id' => 0];
-        $out = ['high' => $empty, 'low' => $empty, 'shoulder' => $empty];
-
+        $out = ['high' => '', 'low' => ''];
         if ($rates === []) {
             return $out;
         }
 
+        $row = self::summer_row($rates, $seasons, gmdate('Y-m-d', $asOf ?? time()));
+        if ($row === null) {
+            // No summer price in the feed at all (a winter-only yacht): the
+            // current season, else the earliest season the feed priced.
+            $current = $seasons->current($asOf);
+            $row = self::row_for($rates, $current !== null ? (int) $current['id'] : 0) ?? $rates[0];
+        }
+
         $locale = (string) $settings->get('currency_locale', 'hr');
-        $current = $seasons->current();
-        $next = $seasons->next();
-
-        $currentId = $current !== null ? (int) $current['id'] : 0;
-        $nextId = $next !== null ? (int) $next['id'] : 0;
-
-        $currentRow = self::row_for($rates, $currentId);
-        $nextRow = self::row_for($rates, $nextId);
-
-        // Fall back to the earliest season the feed actually priced, so a yacht
-        // whose current season is unpriced still shows something truthful.
-        if ($currentRow === null) {
-            $currentRow = $rates[0];
-            $currentId = (int) $currentRow['season_id'];
-        }
-
-        if ($currentRow !== null) {
-            $out['high'] = [
-                'rate'      => Transforms::money($currentRow['max_rate'], $currentRow['currency'], $locale),
-                'time'      => $seasons->window_text($currentId),
-                'season_id' => $currentId,
-            ];
-            $out['low'] = [
-                'rate'      => Transforms::money($currentRow['min_rate'], $currentRow['currency'], $locale),
-                'time'      => $seasons->window_text($currentId),
-                'season_id' => $currentId,
-            ];
-        }
-
-        if ($nextRow !== null) {
-            $shoulderSource = (string) $settings->get('shoulder_source', 'next_season_min');
-            $amount = $shoulderSource === 'next_season_max'
-                ? ($nextRow['max_rate'] ?? $nextRow['min_rate'])
-                : ($nextRow['min_rate'] ?? $nextRow['max_rate']);
-
-            $out['shoulder'] = [
-                'rate'      => Transforms::money($amount, $nextRow['currency'], $locale),
-                'time'      => $seasons->window_text($nextId),
-                'season_id' => $nextId,
-            ];
-        }
-
+        $out['high'] = Transforms::money($row['max_rate'], $row['currency'], $locale);
+        $out['low']  = Transforms::money($row['min_rate'], $row['currency'], $locale);
         return $out;
+    }
+
+    /**
+     * The summer season row the High / Low boxes describe: the earliest one
+     * that has not ended on $date, else — next summer not priced yet — the
+     * latest one that has. Last summer's prices stand for summer far better
+     * than a winter rate does. A season the reference list does not know has
+     * no dates and is skipped.
+     *
+     * @param array<int,array{season_id:int,currency:string,min_rate:?float,max_rate:?float,term:string}> $rates
+     * @return array{season_id:int,currency:string,min_rate:?float,max_rate:?float,term:string}|null
+     */
+    private static function summer_row(array $rates, SeasonResolver $seasons, string $date): ?array
+    {
+        $next = null;
+        $nextStart = '';
+        $last = null;
+        $lastStart = '';
+        foreach ($rates as $rate) {
+            $seasonId = (int) $rate['season_id'];
+            if ($seasons->kind($seasonId) !== 'summer') {
+                continue;
+            }
+            $season = $seasons->by_id($seasonId);
+            $start = (string) ($season['season_start'] ?? '');
+            $end = (string) ($season['season_end'] ?? '');
+            if ($start === '' || $end === '') {
+                continue;
+            }
+            if ($end >= $date) {
+                if ($next === null || $start < $nextStart) {
+                    $next = $rate;
+                    $nextStart = $start;
+                }
+            } elseif ($last === null || $start > $lastStart) {
+                $last = $rate;
+                $lastStart = $start;
+            }
+        }
+        return $next ?? $last;
     }
 
     /**
@@ -122,40 +139,5 @@ final class RatesTable
             }
         }
         return null;
-    }
-
-    /**
-     * The rate rows a customer may still book, oldest first.
-     *
-     * The feed keeps history: ACAPELLA carries 14 rows reaching back to
-     * "Winter 2020/2021". Showing those on a charter page is wrong, so a row
-     * survives only while its season has not ended. This is the single source
-     * of truth for "how many rate rows are showable" — both the presence flag
-     * `yf_has_rates` and the `{yf_rates_table}` renderer call it, so the badge
-     * can never disagree with the table.
-     *
-     * Rows without a parseable `season_end` are kept: a missing date must not
-     * silently delete a live price.
-     *
-     * @param array<int,array<string,mixed>> $rates
-     * @return array<int,array<string,mixed>>
-     */
-    public static function upcoming(array $rates, ?string $today = null): array
-    {
-        $cutoff = $today ?? current_time('Y-m-d');
-
-        $rows = array_values(array_filter($rates, static function ($row) use ($cutoff): bool {
-            if (!is_array($row)) {
-                return false;
-            }
-            $end = trim((string) ($row['season_end'] ?? ''));
-            return $end === '' || $end >= $cutoff;
-        }));
-
-        usort($rows, static function (array $a, array $b): int {
-            return strcmp((string) ($a['season_start'] ?? ''), (string) ($b['season_start'] ?? ''));
-        });
-
-        return $rows;
     }
 }
